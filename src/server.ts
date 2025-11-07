@@ -98,7 +98,9 @@ app.post('/api/file/:path(*)', async (req, res) => {
     }
     let currentStat: fs.Stats | undefined;
     try { currentStat = fs.statSync(resolved); } catch {}
-    if (clientMtime && currentStat && Math.round(clientMtime) !== Math.round(currentStat.mtimeMs)) {
+
+    const override = !!(req.body && (req.body as any).override === true);
+    if (!override && clientMtime && currentStat && Math.round(clientMtime) !== Math.round(currentStat.mtimeMs)) {
       return res.status(409).json({ error: 'Conflict: file modified by others' });
     }
 

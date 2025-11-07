@@ -122,6 +122,10 @@
         throw new Error(`保存失败（${res.status}）：${text.slice(0,200)}`);
       }
       if(!res.ok || !data.success){
+        if (res.status === 409) {
+          openOverrideModal(pathToSave);
+          return;
+        }
         throw new Error(data.error || `保存失败（${res.status}）`);
       }
       lastModified = data.lastModified;
@@ -132,6 +136,36 @@
       alert(err.message || '保存失败');
       setStatus('保存失败');
     }
+  }
+
+  function openOverrideModal(target){
+    const b = $('override-modal');
+    b.style.display = 'flex';
+    b.dataset.target = target;
+  }
+  function closeOverrideModal(){
+    const b = $('override-modal');
+    b.style.display = 'none';
+    delete b.dataset.target;
+  }
+  async function confirmOverride(){
+    const b = $('override-modal');
+    const target = b.dataset.target || filePath;
+    const content = $('editor-textarea').value;
+    const res = await fetch(`/api/file/${encodeURIComponent(target)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content, override: true })
+    });
+    const data = await res.json();
+    if(!res.ok || !data.success){
+      alert(data.error || `覆盖保存失败（${res.status}）`);
+      return;
+    }
+    lastModified = data.lastModified;
+    setStatus('已保存');
+    unsaved = false;
+    closeOverrideModal();
   }
 
   async function openSaveAsModal(){
@@ -249,6 +283,9 @@
 
     $('saveas-cancel').addEventListener('click', closeSaveAsModal);
     $('saveas-confirm').addEventListener('click', confirmSaveAs);
+
+    $('override-cancel').addEventListener('click', closeOverrideModal);
+    $('override-confirm').addEventListener('click', confirmOverride);
 
     window.addEventListener('beforeunload', (e)=>{
       if (!unsaved) return;
