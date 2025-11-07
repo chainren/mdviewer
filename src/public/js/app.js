@@ -329,15 +329,17 @@ class MarkdownViewerApp {
         this.outlineVisible = !this.outlineVisible;
 
         if (this.outlineVisible) {
-            // 展开大纲面板（保持按钮可见，统一宽度与CSS）
+            // 展开时：移除 collapsed，添加 open（在移动端确保从屏幕外滑入）
             panel.classList.remove('collapsed');
+            panel.classList.add('open');
             panel.style.width = expandedWidth + 'px';
             panel.style.display = 'flex';
             panel.style.transition = 'width 0.3s ease';
             toggle.textContent = '◀';
             toggle.title = '收起大纲';
         } else {
-            // 收起大纲面板（保留狭窄把手，按钮始终可点击以再次展开）
+            // 收起时：移除 open，添加 collapsed（移动端保留把手可点击）
+            panel.classList.remove('open');
             panel.classList.add('collapsed');
             panel.style.width = collapsedWidth + 'px';
             panel.style.display = 'flex';
