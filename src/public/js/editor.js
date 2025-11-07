@@ -109,6 +109,8 @@
   function togglePreview(){
     const pane = $('preview-pane');
     pane.classList.toggle('hidden');
+    const hidden = pane.classList.contains('hidden');
+    try { localStorage.setItem('editor-preview-hidden', hidden ? '1' : '0'); } catch {}
   }
 
   function goBack(){
@@ -140,14 +142,9 @@
   function init(){
     applyThemeFromViewer();
     renderer = new MarkdownRenderer();
-    // 让预览渲染在 editor.html 的预览容器内
-    // 覆写 content-body 指向
-    const previewBody = document.getElementById('preview-body');
-    const originalGetElementById = document.getElementById.bind(document);
-    document.getElementById = function(id){
-      if(id === 'content-body') return previewBody;
-      return originalGetElementById(id);
-    };
+
+    const hidden = (localStorage.getItem('editor-preview-hidden') === '1');
+    if (hidden) $('preview-pane').classList.add('hidden');
 
     bindShortcuts();
     bindUI();
