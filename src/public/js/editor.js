@@ -56,11 +56,50 @@
     }
   }
 
+  function surroundSelection(prefix, suffix){
+    const ta = $('editor-textarea');
+    const start = ta.selectionStart, end = ta.selectionEnd;
+    const before = ta.value.slice(0, start);
+    const sel = ta.value.slice(start, end);
+    const after = ta.value.slice(end);
+    ta.value = before + prefix + sel + suffix + after;
+    ta.selectionStart = start + prefix.length;
+    ta.selectionEnd = end + prefix.length;
+    ta.focus();
+    scheduleRender();
+    unsaved = true;
+  }
+
+  function insertAtLineStart(prefix){
+    const ta = $('editor-textarea');
+    const pos = ta.selectionStart;
+    const value = ta.value;
+    const lineStart = value.lastIndexOf('\n', pos - 1) + 1;
+    ta.value = value.slice(0, lineStart) + prefix + value.slice(lineStart);
+    ta.selectionStart = ta.selectionEnd = pos + prefix.length;
+    ta.focus();
+    scheduleRender();
+    unsaved = true;
+  }
+
   function bindShortcuts(){
     document.addEventListener('keydown', (e)=>{
-      if((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's'){
+      const key = e.key.toLowerCase();
+      if((e.metaKey || e.ctrlKey) && key === 's'){
         e.preventDefault();
         saveFile();
+      }
+      if((e.metaKey || e.ctrlKey) && key === 'b'){
+        e.preventDefault();
+        surroundSelection('**', '**');
+      }
+      if((e.metaKey || e.ctrlKey) && key === 'i'){
+        e.preventDefault();
+        surroundSelection('*', '*');
+      }
+      if((e.metaKey || e.ctrlKey) && /[1-6]/.test(key)){
+        e.preventDefault();
+        insertAtLineStart('#'.repeat(parseInt(key)) + ' ');
       }
     });
   }
@@ -131,6 +170,15 @@
     $('btn-save-as').addEventListener('click', ()=> { saveAs(); unsaved = false; });
     $('btn-toggle-preview').addEventListener('click', togglePreview);
     $('btn-back').addEventListener('click', goBack);
+
+    $('btn-bold').addEventListener('click', ()=> surroundSelection('**','**'));
+    $('btn-italic').addEventListener('click', ()=> surroundSelection('*','*'));
+    $('btn-h1').addEventListener('click', ()=> insertAtLineStart('# '));
+    $('btn-h2').addEventListener('click', ()=> insertAtLineStart('## '));
+    $('btn-h3').addEventListener('click', ()=> insertAtLineStart('### '));
+    $('btn-h4').addEventListener('click', ()=> insertAtLineStart('#### '));
+    $('btn-h5').addEventListener('click', ()=> insertAtLineStart('##### '));
+    $('btn-h6').addEventListener('click', ()=> insertAtLineStart('###### '));
 
     window.addEventListener('beforeunload', (e)=>{
       if (!unsaved) return;

@@ -40,9 +40,6 @@ app.get('/api/file/:path(*)', (req, res) => {
   try {
     const rawPath = req.params.path;
     const content = readMarkdownFile(rawPath);
-    if (!content) {
-      return res.status(404).json({ error: 'File not found or invalid' });
-    }
     const resolved = resolveWorkspacePath(rawPath);
     const stat = fs.statSync(resolved);
     const lastModified = stat.mtimeMs;
