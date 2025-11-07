@@ -1,0 +1,472 @@
+/* 基础样式重置 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    /* 亮色主题 */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --bg-tertiary: #e9ecef;
+    --text-primary: #212529;
+    --text-secondary: #6c757d;
+    --border-color: #dee2e6;
+    --accent-color: #007bff;
+    --accent-hover: #0056b3;
+    --shadow: rgba(0, 0, 0, 0.1);
+    --code-bg: #f8f9fa;
+    --code-text: #e83e8c;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.6;
+    color: var(--text-primary);
+    background-color: var(--bg-primary);
+}
+
+/* 应用布局 */
+.app {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 头部导航 */
+.header {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    padding: 0.75rem 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 1px 3px var(--shadow);
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.header h1 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.breadcrumb-item {
+    padding: 0.25rem 0.5rem;
+    background: var(--bg-tertiary);
+    border-radius: 0.25rem;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.breadcrumb-item:hover {
+    background: var(--accent-color);
+    color: white;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.mobile-menu-toggle {
+    display: none;
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 0.25rem;
+    padding: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.mobile-menu-toggle:hover {
+    background: var(--bg-tertiary);
+}
+
+.theme-toggle {
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 0.25rem;
+    padding: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.theme-toggle:hover {
+    background: var(--bg-tertiary);
+}
+
+/* 主容器 */
+.main-container {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+}
+
+/* 侧边栏 */
+.sidebar {
+    width: 280px;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.sidebar-header {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sidebar-header h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.refresh-btn {
+    background: none;
+    border: none;
+    padding: 0.25rem;
+    cursor: pointer;
+    border-radius: 0.25rem;
+    transition: background 0.2s ease;
+}
+
+.refresh-btn:hover {
+    background: var(--bg-tertiary);
+}
+
+.file-tree {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+/* 大纲面板 */
+.outline-panel {
+    width: 250px;
+    background: var(--bg-primary);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.outline-header {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.outline-header h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.toggle-outline {
+    background: none;
+    border: none;
+    padding: 0.25rem;
+    cursor: pointer;
+    border-radius: 0.25rem;
+    transition: background 0.2s ease;
+}
+
+.toggle-outline:hover {
+    background: var(--bg-tertiary);
+}
+
+.outline-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+/* 内容区域 */
+.content-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.content-header {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-primary);
+}
+
+.content-header h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.content-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.edit-btn, .refresh-content {
+    background: none;
+    border: 1px solid var(--border-color);
+    border-radius: 0.25rem;
+    padding: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.edit-btn:hover, .refresh-content:hover {
+    background: var(--bg-tertiary);
+}
+
+.content-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 2rem;
+    background: var(--bg-primary);
+}
+
+/* 欢迎消息 */
+.welcome-message {
+    text-align: center;
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.welcome-message h2 {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+
+.welcome-message p {
+    font-size: 1.1rem;
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
+}
+
+.features {
+    text-align: left;
+    background: var(--bg-secondary);
+    padding: 2rem;
+    border-radius: 0.5rem;
+    margin-bottom: 2rem;
+}
+
+.features h3 {
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+
+.features ul {
+    list-style: none;
+    padding: 0;
+}
+
+.features li {
+    padding: 0.5rem 0;
+    font-size: 1rem;
+}
+
+.tip {
+    font-style: italic;
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    padding: 1rem;
+    border-radius: 0.5rem;
+    border-left: 4px solid var(--accent-color);
+}
+
+/* 加载状态 */
+.loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-secondary);
+}
+
+.placeholder {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* 文件树样式 */
+.file-tree-item {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    cursor: pointer;
+    border-radius: 0.25rem;
+    transition: background 0.2s ease;
+}
+
+.file-tree-item:hover {
+    background: var(--bg-tertiary);
+}
+
+.file-tree-item.active {
+    background: var(--accent-color);
+    color: white;
+}
+
+.file-tree-item.directory {
+    font-weight: 500;
+}
+
+.file-tree-item.file {
+    padding-left: 1.5rem;
+}
+
+.file-icon {
+    margin-right: 0.5rem;
+    width: 16px;
+    text-align: center;
+}
+
+.expand-icon {
+    margin-right: 0.25rem;
+    width: 12px;
+    text-align: center;
+    transition: transform 0.2s ease;
+}
+
+.expand-icon.expanded {
+    transform: rotate(90deg);
+}
+
+/* 大纲样式 */
+.outline-item {
+    padding: 0.25rem 0;
+    cursor: pointer;
+    border-radius: 0.25rem;
+    transition: background 0.2s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.outline-item:hover {
+    background: var(--bg-tertiary);
+}
+
+.outline-item.level-1 {
+    padding-left: 0.5rem;
+    font-weight: 600;
+}
+
+.outline-item.level-2 {
+    padding-left: 1.5rem;
+}
+
+.outline-item.level-3 {
+    padding-left: 2.5rem;
+}
+
+.outline-item.level-4 {
+    padding-left: 3.5rem;
+}
+
+.outline-item.level-5 {
+    padding-left: 4.5rem;
+}
+
+.outline-item.level-6 {
+    padding-left: 5.5rem;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 240px;
+    }
+    
+    .outline-panel {
+        width: 200px;
+    }
+    
+    .content-body {
+        padding: 1rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .mobile-menu-toggle {
+        display: block;
+    }
+    
+    .header h1 {
+        font-size: 1rem;
+    }
+    
+    .breadcrumb {
+        display: none;
+    }
+    
+    .sidebar, .outline-panel {
+        position: absolute;
+        z-index: 1000;
+        height: 100%;
+        box-shadow: 2px 0 8px var(--shadow);
+    }
+    
+    .sidebar {
+        left: -240px;
+        transition: left 0.3s ease;
+    }
+    
+    .sidebar.open {
+        left: 0;
+    }
+    
+    .outline-panel {
+        left: -200px;
+        transition: left 0.3s ease;
+    }
+    
+    .outline-panel.open {
+        left: 240px;
+    }
+    
+    .mobile-menu-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+    }
+    
+    .mobile-menu-overlay.active {
+        display: block;
+    }
+}

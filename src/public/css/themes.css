@@ -1,0 +1,177 @@
+/* 暗色主题 */
+[data-theme="dark"] {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2d2d2d;
+    --bg-tertiary: #404040;
+    --text-primary: #ffffff;
+    --text-secondary: #b0b0b0;
+    --border-color: #404040;
+    --accent-color: #4dabf7;
+    --accent-hover: #339af0;
+    --shadow: rgba(0, 0, 0, 0.3);
+    --code-bg: #2d2d2d;
+    --code-text: #ff6b6b;
+}
+
+/* 蓝色主题 */
+[data-theme="blue"] {
+    --bg-primary: #f0f8ff;
+    --bg-secondary: #e6f3ff;
+    --bg-tertiary: #cce7ff;
+    --text-primary: #1e3a8a;
+    --text-secondary: #3b82f6;
+    --border-color: #bfdbfe;
+    --accent-color: #2563eb;
+    --accent-hover: #1d4ed8;
+    --shadow: rgba(37, 99, 235, 0.1);
+    --code-bg: #e6f3ff;
+    --code-text: #dc2626;
+}
+
+/* 绿色主题 */
+[data-theme="green"] {
+    --bg-primary: #f0fdf4;
+    --bg-secondary: #dcfce7;
+    --bg-tertiary: #bbf7d0;
+    --text-primary: #14532d;
+    --text-secondary: #16a34a;
+    --border-color: #bbf7d0;
+    --accent-color: #15803d;
+    --accent-hover: #166534;
+    --shadow: rgba(21, 128, 61, 0.1);
+    --code-bg: #dcfce7;
+    --code-text: #dc2626;
+}
+
+/* 紫色主题 */
+[data-theme="purple"] {
+    --bg-primary: #faf5ff;
+    --bg-secondary: #f3e8ff;
+    --bg-tertiary: #e9d5ff;
+    --text-primary: #581c87;
+    --text-secondary: #9333ea;
+    --border-color: #e9d5ff;
+    --accent-color: #7c3aed;
+    --accent-hover: #6d28d9;
+    --shadow: rgba(124, 58, 237, 0.1);
+    --code-bg: #f3e8ff;
+    --code-text: #dc2626;
+}
+
+/* 主题切换动画 */
+* {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* 代码块主题适配 */
+pre[class*="language-"] {
+    background: var(--code-bg) !important;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    margin: 1rem 0;
+}
+
+code[class*="language-"] {
+    color: var(--code-text);
+}
+
+/* 表格主题适配 */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1rem 0;
+    background: var(--bg-primary);
+}
+
+th, td {
+    border: 1px solid var(--border-color);
+    padding: 0.75rem;
+    text-align: left;
+}
+
+th {
+    background: var(--bg-secondary);
+    font-weight: 600;
+}
+
+/* 引用块主题适配 */
+blockquote {
+    border-left: 4px solid var(--accent-color);
+    padding-left: 1rem;
+    margin: 1rem 0;
+    background: var(--bg-secondary);
+    padding: 1rem 1rem 1rem 2rem;
+    border-radius: 0 0.5rem 0.5rem 0;
+}
+
+/* 链接主题适配 */
+a {
+    color: var(--accent-color);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+a:hover {
+    color: var(--accent-hover);
+    text-decoration: underline;
+}
+
+/* 图片主题适配 */
+img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 8px var(--shadow);
+}
+
+/* 水平线主题适配 */
+hr {
+    border: none;
+    height: 1px;
+    background: var(--border-color);
+    margin: 2rem 0;
+}
+
+/* Mermaid 图表主题适配 */
+.mermaid {
+    text-align: center;
+    margin: 2rem 0;
+    background: var(--bg-primary);
+    padding: 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color);
+}
+
+/* PlantUML 图表主题适配 */
+.plantuml {
+    text-align: center;
+    margin: 2rem 0;
+    background: var(--bg-primary);
+    padding: 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color);
+}
+
+.plantuml img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* 滚动条主题适配 */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
