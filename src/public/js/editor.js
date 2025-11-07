@@ -127,22 +127,82 @@
     }
   }
 
-  function saveAs(){
-    const current = filePath || '';
-    const suggestion = current.replace(/(\.[^./\\]+)?$/, '') + '.md';
-    const newPath = prompt('输入另存为路径（相对于项目根目录）', suggestion);
-    if(!newPath){ return; }
-    if(!/\.(md|markdown|mdown|mkd|mkdn)$/i.test(newPath)){
+  async function openSaveAsModal(){
+    const backdrop = $('saveas-modal');
+    backdrop.style.display = 'flex';
+    // 加载文件树
+    try {
+      const res = await fetch('/api/files');
+      const files = await res.json();
+      renderSaveAsTree(files);
+    } catch (e) {
+      console.error('加载文件树失败', e);
+      $('saveas-tree').innerHTML = '<div class="error">加载文件树失败</div>';
+    }
+  }
+
+  function closeSaveAsModal(){
+    const backdrop = $('saveas-modal');
+    backdrop.style.display = 'none';
+  }
+
+  function renderSaveAsTree(files){
+    const container = $('saveas-tree');
+    container.innerHTML = '';
+
+    function createItem(node, level){
+      const el = document.createElement('div');
+      el.className = 'tree-item';
+      el.style.paddingLeft = `${level * 1.25 + 0.5}rem`;
+      el.textContent = (node.type === 'directory' ? '📁 ' : '📄 ') + node.name;
+      el.dataset.path = node.path || '';
+      el.dataset.type = node.type;
+      el.addEventListener('click', ()=>{
+        // 仅允许选择目录作为目标目录
+        container.querySelectorAll('.tree-item').forEach(i=> i.classList.remove('selected'));
+        el.classList.add('selected');
+        if (node.type === 'directory') {
+          $('saveas-dir').value = node.path || '';
+        } else {
+          const dir = node.path ? node.path.replace(/\/[^\/]+$/, '') : '';
+          $('saveas-dir').value = dir;
+          $('saveas-name').value = node.name;
+        }
+      });
+      return el;
+    }
+
+    function traverse(nodes, level){
+      nodes.forEach(n => {
+        container.appendChild(createItem(n, level));
+        if (n.type === 'directory' && n.children && n.children.length) {
+          traverse(n.children, level + 1);
+        }
+      });
+    }
+
+    traverse(files, 0);
+  }
+
+  async function confirmSaveAs(){
+    const dir = $('saveas-dir').value.trim();
+    const name = $('saveas-name').value.trim();
+    if (!name) { alert('请输入文件名'); return; }
+    const target = dir ? `${dir.replace(/\/+$/, '')}/${name}` : name;
+    if(!/\.(md|markdown|mdown|mkd|mkdn)$/i.test(target)){
       alert('仅支持保存为 Markdown 文件');
       return;
     }
-    saveFile(newPath).then(()=>{
-      // 更新地址栏参数与标题
-      const url = new URL(window.location.href);
-      url.searchParams.set('file', newPath);
-      history.replaceState(null, '', url.toString());
-      $('editor-title').textContent = `编辑：${newPath}`;
-    });
+    await saveFile(target);
+    const url = new URL(window.location.href);
+    url.searchParams.set('file', target);
+    history.replaceState(null, '', url.toString());
+    $('editor-title').textContent = `编辑：${target}`;
+    closeSaveAsModal();
+  }
+
+  function saveAs(){
+    openSaveAsModal();
   }
 
   function togglePreview(){
@@ -167,7 +227,7 @@
   function bindUI(){
     $('editor-textarea').addEventListener('input', ()=>{ unsaved = true; scheduleRender(); });
     $('btn-save').addEventListener('click', ()=> { saveFile(); unsaved = false; });
-    $('btn-save-as').addEventListener('click', ()=> { saveAs(); unsaved = false; });
+    $('btn-save-as').addEventListener('click', ()=> { saveAs(); });
     $('btn-toggle-preview').addEventListener('click', togglePreview);
     $('btn-back').addEventListener('click', goBack);
 
@@ -179,6 +239,9 @@
     $('btn-h4').addEventListener('click', ()=> insertAtLineStart('#### '));
     $('btn-h5').addEventListener('click', ()=> insertAtLineStart('##### '));
     $('btn-h6').addEventListener('click', ()=> insertAtLineStart('###### '));
+
+    $('saveas-cancel').addEventListener('click', closeSaveAsModal);
+    $('saveas-confirm').addEventListener('click', confirmSaveAs);
 
     window.addEventListener('beforeunload', (e)=>{
       if (!unsaved) return;

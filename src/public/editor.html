@@ -12,7 +12,8 @@
         /* 编辑器页面的最小增量样式，复用主站设计变量 */
         .editor-container { display: flex; height: 100vh; }
         .editor-toolbar { padding: 0.5rem 1rem; border-bottom: 1px solid var(--border-color); background: var(--bg-secondary); display:flex; justify-content: space-between; align-items:center; }
-        .editor-actions { display:flex; gap:0.5rem; }
+        .editor-actions { display:flex; gap:0.5rem; align-items:center; }
+        .edit-btn-group { display:flex; gap:4px; }
         .editor-main { flex:1; display:flex; }
         .editor-pane { flex:1; display:flex; flex-direction:column; }
         .editor-pane.left { border-right: 1px solid var(--border-color); }
@@ -23,6 +24,19 @@
         .split-title { padding:0.5rem 1rem; border-bottom:1px solid var(--border-color); font-size:0.875rem; color: var(--text-secondary); background: var(--bg-secondary); }
         .hidden { display:none; }
         @media (max-width: 768px) { .editor-main { flex-direction: column; } .editor-pane.left { border-right:none; border-bottom: 1px solid var(--border-color); } }
+
+        /* Save As 弹窗 */
+        .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display:none; align-items:center; justify-content:center; z-index: 1000; }
+        .modal { width: 720px; max-width: 95vw; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+        .modal-header { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); font-weight: 600; }
+        .modal-body { display:flex; gap:12px; padding: 0.75rem 1rem; }
+        .modal-footer { display:flex; justify-content:flex-end; gap:8px; padding: 0.75rem 1rem; border-top: 1px solid var(--border-color); }
+        .tree-pane { flex: 1 1 60%; border: 1px solid var(--border-color); border-radius:6px; padding:8px; max-height: 50vh; overflow:auto; }
+        .form-pane { flex: 1 1 40%; display:flex; flex-direction:column; gap:8px; }
+        .form-pane input { padding:8px; border:1px solid var(--border-color); border-radius:4px; background: var(--bg-primary); color: var(--text-primary); }
+        .tree-item { cursor: pointer; padding:4px 6px; border-radius:4px; }
+        .tree-item:hover { background: var(--bg-secondary); }
+        .tree-item.selected { background: var(--bg-secondary); outline: 1px solid var(--border-color); }
     </style>
 </head>
 <body>
@@ -34,6 +48,27 @@
                     <button id="btn-back" class="edit-btn" title="返回预览">⟵ 返回</button>
                     <button id="btn-save" class="edit-btn" title="保存 (Cmd/Ctrl+S)">💾 保存</button>
                     <button id="btn-save-as" class="edit-btn" title="另存为">📝 另存为</button>
+                    <div id="saveas-modal" class="modal-backdrop">
+                        <div class="modal">
+                            <div class="modal-header">另存为</div>
+                            <div class="modal-body">
+                                <div class="tree-pane">
+                                    <div id="saveas-tree"></div>
+                                </div>
+                                <div class="form-pane">
+                                    <label for="saveas-dir">目标目录</label>
+                                    <input id="saveas-dir" type="text" placeholder="例如：docs/notes" />
+                                    <label for="saveas-name">文件名</label>
+                                    <input id="saveas-name" type="text" placeholder="例如：new-file.md" />
+                                    <small>仅支持 .md/.markdown/.mdown/.mkd/.mkdn</small>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button id="saveas-cancel" class="edit-btn">取消</button>
+                                <button id="saveas-confirm" class="edit-btn">保存</button>
+                            </div>
+                        </div>
+                    </div>
                     <button id="btn-bold" class="edit-btn" title="加粗 (Cmd/Ctrl+B)">B</button>
                     <button id="btn-italic" class="edit-btn" title="斜体 (Cmd/Ctrl+I)"><i>I</i></button>
                     <div class="edit-btn-group">
@@ -67,6 +102,7 @@
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
     <script src="js/renderer.js"></script>
+    <script src="js/fileTree.js"></script>
     <script src="js/editor.js"></script>
 </body>
 </html>
