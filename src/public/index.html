@@ -42,6 +42,29 @@
                 <div class="file-tree" id="file-tree">
                     <div class="loading">加载中...</div>
                 </div>
+
+                <!-- 新建文件弹窗 -->
+                <div id="newfile-modal" class="modal-backdrop" style="display:none;">
+                    <div class="modal">
+                        <div class="modal-header">新建 Markdown 文件</div>
+                        <div class="modal-body">
+                            <div class="tree-pane">
+                                <div id="newfile-tree"></div>
+                            </div>
+                            <div class="form-pane">
+                                <label for="newfile-dir">目标目录</label>
+                                <input id="newfile-dir" type="text" placeholder="例如：docs/notes" />
+                                <label for="newfile-name">文件名</label>
+                                <input id="newfile-name" type="text" placeholder="例如：new-file.md" />
+                                <small>仅支持 .md/.markdown/.mdown/.mkd/.mkdn</small>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button id="newfile-cancel" class="edit-btn">取消</button>
+                            <button id="newfile-confirm" class="edit-btn">创建</button>
+                        </div>
+                    </div>
+                </div>
             </aside>
             
             <!-- 侧边栏收起时的缩略条 -->

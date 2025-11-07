@@ -548,6 +548,19 @@ body {
     box-shadow: 0 0 0 2px var(--hover-color);
 }
 
+/* 统一弹窗样式（与编辑器一致） */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display:none; align-items:center; justify-content:center; z-index: 2000; }
+.modal { width: 720px; max-width: 95vw; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+.modal-header { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color); font-weight: 600; }
+.modal-body { display:flex; gap:12px; padding: 0.75rem 1rem; }
+.modal-footer { display:flex; justify-content:flex-end; gap:8px; padding: 0.75rem 1rem; border-top: 1px solid var(--border-color); }
+.tree-pane { flex: 1 1 60%; border: 1px solid var(--border-color); border-radius:6px; padding:8px; max-height: 50vh; overflow:auto; }
+.form-pane { flex: 1 1 40%; display:flex; flex-direction:column; gap:8px; }
+.form-pane input { padding:8px; border:1px solid var(--border-color); border-radius:4px; background: var(--bg-primary); color: var(--text-primary); }
+.tree-item { cursor: pointer; padding:4px 6px; border-radius:4px; }
+.tree-item:hover { background: var(--bg-secondary); }
+.tree-item.selected { background: var(--bg-secondary); outline: 1px solid var(--border-color); }
+
 /* 右键菜单 */
 .context-menu {
     position: absolute;

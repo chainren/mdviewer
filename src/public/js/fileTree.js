@@ -385,12 +385,110 @@ class FileTree {
         }, 3000);
     }
 
+    openNewFileModal(parentDir) {
+        const backdrop = document.getElementById('newfile-modal');
+        const dirInput = document.getElementById('newfile-dir');
+        const nameInput = document.getElementById('newfile-name');
+        if (!backdrop || !dirInput || !nameInput) {
+            // 回退：若页面无弹窗，使用 prompt
+            this.createNewFile(parentDir);
+            return;
+        }
+        // 默认选中当前目录
+        const dirPath = parentDir && parentDir.type === 'directory' ? (parentDir.path || parentDir.name) : '';
+        dirInput.value = dirPath || '';
+        nameInput.value = '';
+        backdrop.style.display = 'flex';
+
+        const cancel = document.getElementById('newfile-cancel');
+        const confirm = document.getElementById('newfile-confirm');
+        const onCancel = () => { backdrop.style.display = 'none'; cleanup(); };
+        const onConfirm = () => { this.confirmCreateNewFile(); cleanup(); };
+        const onBackdrop = (e) => { if (e.target === backdrop) onCancel(); };
+        const onKey = (e) => { if (e.key === 'Escape') onCancel(); };
+
+        cancel.addEventListener('click', onCancel);
+        confirm.addEventListener('click', onConfirm);
+        backdrop.addEventListener('click', onBackdrop);
+        document.addEventListener('keydown', onKey, { once: true });
+
+        function cleanup(){
+            cancel.removeEventListener('click', onCancel);
+            confirm.removeEventListener('click', onConfirm);
+            backdrop.removeEventListener('click', onBackdrop);
+        }
+    }
+
+    renderNewFileTree() {
+        const host = document.getElementById('newfile-tree');
+        if (!host) return;
+        host.innerHTML = '';
+        const renderNode = (node, parentPath='') => {
+            const fullPath = node.type === 'directory' ? (parentPath ? `${parentPath}/${node.name}` : node.name) : node.path;
+            const item = document.createElement('div');
+            item.className = 'tree-item';
+            item.textContent = node.name;
+            item.title = fullPath;
+            if (node.type === 'directory') {
+                item.addEventListener('click', () => {
+                    const dirInput = document.getElementById('newfile-dir');
+                    if (dirInput) dirInput.value = fullPath;
+                    // 高亮选中
+                    host.querySelectorAll('.tree-item').forEach(el => el.classList.remove('selected'));
+                    item.classList.add('selected');
+                });
+                host.appendChild(item);
+                if (node.children && node.children.length) {
+                    node.children.forEach(child => renderNode(child, fullPath));
+                }
+            }
+        };
+        this.files.forEach(root => renderNode(root, ''));
+    }
+
+    async confirmCreateNewFile() {
+        const backdrop = document.getElementById('newfile-modal');
+        const dirInput = document.getElementById('newfile-dir');
+        const nameInput = document.getElementById('newfile-name');
+        const dir = dirInput ? dirInput.value.trim() : '';
+        const name = nameInput ? nameInput.value.trim() : '';
+        const allowed = ['.md', '.markdown', '.mdown', '.mkd', '.mkdn'];
+        const lower = name.toLowerCase();
+        if (!name || !allowed.some(ext => lower.endsWith(ext))) {
+            this.showNotification('请输入合法的 Markdown 文件名');
+            return;
+        }
+        const target = dir ? `${dir}/${name}` : name;
+        try {
+            const res = await fetch(`/api/file/${encodeURIComponent(target)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: '' })
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                this.showNotification(data.error || `创建失败（${res.status}）`);
+                return;
+            }
+            if (backdrop) backdrop.style.display = 'none';
+            await this.loadFiles();
+            const returnUrl = window.location.pathname + window.location.search;
+            const editUrl = `/editor.html?file=${encodeURIComponent(target)}&return=${encodeURIComponent(returnUrl)}`;
+            window.location.href = editUrl;
+        } catch (err) {
+            console.error('创建文件失败', err);
+            this.showNotification('创建文件失败');
+        }
+    }
+
     async loadFiles() {
         try {
             this.container.innerHTML = '<div class="loading">加载中...</div>';
             const response = await fetch('/api/files');
             this.files = await response.json();
             this.render();
+            // 同步到新建弹窗的目录树
+            this.renderNewFileTree();
         } catch (error) {
             console.error('Error loading files:', error);
             this.container.innerHTML = '<div class="error">加载文件失败</div>';
@@ -443,7 +541,7 @@ class FileTree {
             addBtn.title = '新建文件';
             addBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                this.createNewFile(file);
+                this.openNewFileModal(file);
             });
             element.appendChild(addBtn);
             
