@@ -324,7 +324,7 @@ class MarkdownViewerApp {
         const toggle = document.getElementById('toggle-outline');
         const contentArea = document.querySelector('.content-area');
         const expandedWidth = 250;
-        const collapsedWidth = 16;
+        const collapsedWidth = 40;
 
         this.outlineVisible = !this.outlineVisible;
 
