@@ -16,6 +16,9 @@
                 <button class="mobile-menu-toggle" id="mobile-menu-toggle" title="菜单">
                     <span class="menu-icon">☰</span>
                 </button>
+                <button class="sidebar-toggle" id="sidebar-toggle" title="收起/展开文件浏览器">
+                    <span class="sidebar-icon">◀</span>
+                </button>
                 <h1>Markdown Viewer</h1>
                 <nav class="breadcrumb" id="breadcrumb">
                     <span class="breadcrumb-item">根目录</span>
@@ -31,7 +34,7 @@
         <!-- 主要内容区域 -->
         <div class="main-container">
             <!-- 左侧边栏 -->
-            <aside class="sidebar">
+            <aside class="sidebar" id="sidebar">
                 <div class="sidebar-header">
                     <h3>文件浏览器</h3>
                     <button class="refresh-btn" id="refresh-files" title="刷新文件列表">🔄</button>
@@ -40,6 +43,14 @@
                     <div class="loading">加载中...</div>
                 </div>
             </aside>
+            
+            <!-- 侧边栏收起时的缩略条 -->
+            <div class="sidebar-collapsed" id="sidebar-collapsed" style="display: none;">
+                <button class="sidebar-toggle-collapsed" id="sidebar-toggle-collapsed" title="展开文件浏览器">
+                    <span class="sidebar-icon">▶</span>
+                </button>
+                <div class="sidebar-collapsed-title">文件</div>
+            </div>
 
             <!-- 中间大纲区域 -->
             <div class="outline-panel" id="outline-panel">

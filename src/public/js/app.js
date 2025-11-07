@@ -4,6 +4,7 @@ class MarkdownViewerApp {
         this.renderer = null;
         this.currentFile = null;
         this.outlineVisible = true;
+        this.sidebarCollapsed = false;
         this.themes = ['light', 'dark', 'blue', 'green', 'purple'];
         this.currentTheme = 0;
         this.websocket = null;
@@ -23,6 +24,16 @@ class MarkdownViewerApp {
         const savedTheme = localStorage.getItem('markdown-viewer-theme') || 'light';
         this.currentTheme = this.themes.indexOf(savedTheme) >= 0 ? this.themes.indexOf(savedTheme) : 0;
         this.applyTheme();
+        
+        // 恢复侧边栏状态
+        const savedSidebarState = localStorage.getItem('sidebar-collapsed');
+        if (savedSidebarState === 'true') {
+            this.sidebarCollapsed = true;
+            // 延迟执行，确保DOM完全加载
+            setTimeout(() => {
+                this.toggleSidebar();
+            }, 100);
+        }
     }
 
     setupRenderer() {
@@ -90,6 +101,21 @@ class MarkdownViewerApp {
             this.editCurrentFile();
         });
 
+        // 侧边栏抽屉效果控制
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        if (sidebarToggle) {
+            sidebarToggle.addEventListener('click', () => {
+                this.toggleSidebar();
+            });
+        }
+
+        const sidebarToggleCollapsed = document.getElementById('sidebar-toggle-collapsed');
+        if (sidebarToggleCollapsed) {
+            sidebarToggleCollapsed.addEventListener('click', () => {
+                this.toggleSidebar();
+            });
+        }
+
         // 移动端菜单切换
         const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
         if (mobileMenuToggle) {
@@ -114,6 +140,10 @@ class MarkdownViewerApp {
                     case 't':
                         e.preventDefault();
                         this.cycleTheme();
+                        break;
+                    case 'b':
+                        e.preventDefault();
+                        this.toggleSidebar();
                         break;
                 }
             } else if (e.key === 'Escape') {
@@ -148,6 +178,7 @@ class MarkdownViewerApp {
             const response = await fetch(`/api/file/${encodeURIComponent(file.path)}`);
             const data = await response.json();
             
+            // 使用服务器返回的大纲数据，确保ID一致性
             await this.renderer.renderContent(data.content);
             this.renderOutline(data.outline);
             
@@ -164,6 +195,7 @@ class MarkdownViewerApp {
     }
 
     renderOutline(outline) {
+        console.log('Rendering outline:', outline);
         const container = document.getElementById('outline-content');
         
         if (!outline || outline.length === 0) {
@@ -172,14 +204,28 @@ class MarkdownViewerApp {
         }
 
         container.innerHTML = '';
-        outline.forEach(item => {
+        outline.forEach((item, index) => {
+            console.log('Creating outline item:', item);
             const element = document.createElement('div');
             element.className = `outline-item level-${item.level}`;
             element.textContent = item.text;
             element.title = item.text;
+            element.setAttribute('data-heading-id', item.id);
+            element.style.cursor = 'pointer';
+            element.style.paddingLeft = `${(item.level - 1) * 16 + 8}px`;
             
             element.addEventListener('click', () => {
+                console.log('Outline item clicked:', item.id, item.text);
                 this.scrollToHeading(item.id);
+            });
+            
+            // 添加悬停效果
+            element.addEventListener('mouseenter', () => {
+                element.style.backgroundColor = 'var(--hover-color, rgba(0, 123, 255, 0.1))';
+            });
+            
+            element.addEventListener('mouseleave', () => {
+                element.style.backgroundColor = '';
             });
             
             container.appendChild(element);
@@ -187,11 +233,30 @@ class MarkdownViewerApp {
     }
 
     scrollToHeading(id) {
+        console.log('Attempting to scroll to heading with ID:', id);
         const heading = document.getElementById(id);
         if (heading) {
+            console.log('Found heading, scrolling to:', id);
             heading.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            // 高亮显示目标标题
+            heading.style.backgroundColor = 'var(--accent-color, #007bff)';
+            heading.style.color = 'white';
+            heading.style.padding = '2px 8px';
+            heading.style.borderRadius = '4px';
+            heading.style.transition = 'all 0.3s ease';
+            
+            // 2秒后移除高亮
+            setTimeout(() => {
+                heading.style.backgroundColor = '';
+                heading.style.color = '';
+                heading.style.padding = '';
+                heading.style.borderRadius = '';
+            }, 2000);
         } else {
             console.warn('Heading not found with ID:', id);
+            // 尝试查找所有标题元素
+            const allHeadings = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
+            console.log('Available headings:', Array.from(allHeadings).map(h => ({ id: h.id, text: h.textContent })));
         }
     }
 
@@ -266,6 +331,48 @@ class MarkdownViewerApp {
         }
     }
 
+    toggleSidebar() {
+        this.sidebarCollapsed = !this.sidebarCollapsed;
+        const sidebar = document.getElementById('sidebar');
+        const collapsedBar = document.getElementById('sidebar-collapsed');
+        const mainContainer = document.querySelector('.main-container');
+        const toggle = document.getElementById('sidebar-toggle');
+        const toggleCollapsed = document.getElementById('sidebar-toggle-collapsed');
+        
+        if (this.sidebarCollapsed) {
+            // 收起侧边栏
+            sidebar.classList.add('collapsed');
+            collapsedBar.style.display = 'flex';
+            mainContainer.classList.add('sidebar-collapsed');
+            
+            if (toggle) {
+                toggle.classList.add('collapsed');
+                toggle.innerHTML = '<span class="sidebar-icon">▶</span>';
+                toggle.title = '展开文件浏览器';
+            }
+            
+            // 保存状态到本地存储
+            localStorage.setItem('sidebar-collapsed', 'true');
+        } else {
+            // 展开侧边栏
+            sidebar.classList.remove('collapsed');
+            collapsedBar.style.display = 'none';
+            mainContainer.classList.remove('sidebar-collapsed');
+            
+            if (toggle) {
+                toggle.classList.remove('collapsed');
+                toggle.innerHTML = '<span class="sidebar-icon">◀</span>';
+                toggle.title = '收起文件浏览器';
+            }
+            
+            // 保存状态到本地存储
+            localStorage.setItem('sidebar-collapsed', 'false');
+        }
+        
+        // 触发窗口大小变化事件，让其他组件重新计算布局
+        window.dispatchEvent(new Event('resize'));
+    }
+
     editCurrentFile() {
         if (this.currentFile) {
             const filePath = this.currentFile.path;
@@ -287,10 +394,30 @@ class MarkdownViewerApp {
             // 移动端适配
             this.outlineVisible = false;
             document.getElementById('outline-panel').style.display = 'none';
+            
+            // 移动端强制展开侧边栏（使用移动端菜单逻辑）
+            if (this.sidebarCollapsed) {
+                this.sidebarCollapsed = false;
+                const sidebar = document.getElementById('sidebar');
+                const collapsedBar = document.getElementById('sidebar-collapsed');
+                const mainContainer = document.querySelector('.main-container');
+                
+                sidebar.classList.remove('collapsed');
+                collapsedBar.style.display = 'none';
+                mainContainer.classList.remove('sidebar-collapsed');
+            }
         } else {
             // 桌面端恢复显示
             this.outlineVisible = true;
             document.getElementById('outline-panel').style.display = 'flex';
+            
+            // 桌面端恢复抽屉状态
+            const savedSidebarState = localStorage.getItem('sidebar-collapsed');
+            const shouldBeCollapsed = savedSidebarState === 'true';
+            
+            if (shouldBeCollapsed !== this.sidebarCollapsed) {
+                this.toggleSidebar();
+            }
         }
     }
 

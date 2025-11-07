@@ -155,22 +155,8 @@ class MarkdownRenderer {
         }
 
         try {
-            // 使用自定义渲染器
-            const renderer = new marked.Renderer();
-            
-            // 自定义标题渲染，确保生成ID
-            renderer.heading = (text, level, raw, slugger) => {
-                console.log('Rendering heading:', text, 'Level:', level);
-                const id = raw.toLowerCase()
-                    .replace(/[^\w\s-]/g, '')
-                    .replace(/\s+/g, '-')
-                    .replace(/-+/g, '-')
-                    .replace(/^-|-$/g, '');
-                const headingId = `heading-${id}-${Date.now()}`;
-                return `<h${level} id="${headingId}">${text}</h${level}>`;
-            };
-            
-            const html = await marked.parse(content, { renderer });
+            // 使用marked默认渲染，稍后在renderContent中统一处理标题ID
+            const html = await marked.parse(content);
             return html;
         } catch (error) {
             console.error('Markdown rendering error:', error);
@@ -203,17 +189,15 @@ class MarkdownRenderer {
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = html;
         
-        // 为所有标题添加ID
+        // 使用与服务器端相同的逻辑生成标题ID
+        const serverOutline = this.extractOutline(content);
         const headings = tempDiv.querySelectorAll('h1, h2, h3, h4, h5, h6');
+        
         headings.forEach((heading, index) => {
-            const text = heading.textContent;
-            const id = text.toLowerCase()
-                .replace(/[^\w\s-]/g, '')
-                .replace(/\s+/g, '-')
-                .replace(/-+/g, '-')
-                .replace(/^-|-$/g, '');
-            const headingId = `heading-${id}-${index}`;
-            heading.id = headingId;
+            if (serverOutline[index]) {
+                heading.id = serverOutline[index].id;
+                console.log('Set heading ID:', serverOutline[index].id, 'for text:', heading.textContent);
+            }
         });
         
         document.getElementById('content-body').innerHTML = '';
@@ -222,6 +206,9 @@ class MarkdownRenderer {
         await this.renderMermaidDiagrams();
         
         Prism.highlightAllUnder(tempDiv);
+        
+        // 返回与服务器端一致的大纲数据
+        return serverOutline;
     }
 
     extractOutline(content) {

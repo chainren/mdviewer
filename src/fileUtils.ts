@@ -63,6 +63,7 @@ export function readMarkdownFile(filePath: string): string {
 export function extractOutline(content: string): Array<{level: number, text: string, id: string}> {
   const outline: Array<{level: number, text: string, id: string}> = [];
   const lines = content.split('\n');
+  let headingIndex = 0;
   
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
@@ -77,7 +78,8 @@ export function extractOutline(content: string): Array<{level: number, text: str
         .replace(/-+/g, '-')
         .replace(/^-|-$/g, '');
       
-      outline.push({ level, text, id: `heading-${id}-${i}` });
+      outline.push({ level, text, id: `heading-${id}-${headingIndex}` });
+      headingIndex++;
     }
   }
   
