@@ -114,14 +114,21 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content, lastModified })
       });
-      const data = await res.json();
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        const text = await res.text();
+        throw new Error(`保存失败（${res.status}）：${text.slice(0,200)}`);
+      }
       if(!res.ok || !data.success){
-        throw new Error(data.error || '保存失败');
+        throw new Error(data.error || `保存失败（${res.status}）`);
       }
       lastModified = data.lastModified;
       setStatus('已保存');
+      unsaved = false;
     }catch(err){
-      console.error(err);
+      console.error('保存错误', err);
       alert(err.message || '保存失败');
       setStatus('保存失败');
     }
