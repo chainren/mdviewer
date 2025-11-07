@@ -320,35 +320,39 @@ class MarkdownViewerApp {
     }
 
     toggleOutline() {
-        this.outlineVisible = !this.outlineVisible;
         const panel = document.getElementById('outline-panel');
         const toggle = document.getElementById('toggle-outline');
         const contentArea = document.querySelector('.content-area');
-        
+        const expandedWidth = 250;
+        const collapsedWidth = 16;
+
+        this.outlineVisible = !this.outlineVisible;
+
         if (this.outlineVisible) {
-            // 展开大纲面板
-            panel.style.width = '280px';
+            // 展开大纲面板（保持按钮可见，统一宽度与CSS）
+            panel.classList.remove('collapsed');
+            panel.style.width = expandedWidth + 'px';
             panel.style.display = 'flex';
-            panel.style.transition = 'all 0.3s ease';
+            panel.style.transition = 'width 0.3s ease';
             toggle.textContent = '◀';
             toggle.title = '收起大纲';
-            
+
             if (contentArea) {
-                contentArea.style.marginLeft = '280px';
-                contentArea.style.transition = 'all 0.3s ease';
+                contentArea.style.marginLeft = expandedWidth + 'px';
+                contentArea.style.transition = 'margin-left 0.3s ease';
             }
         } else {
-            // 收起大纲面板
-            panel.style.width = '0';
-            panel.style.padding = '0';
-            panel.style.overflow = 'hidden';
-            panel.style.transition = 'all 0.3s ease';
+            // 收起大纲面板（保留狭窄把手，按钮始终可点击以再次展开）
+            panel.classList.add('collapsed');
+            panel.style.width = collapsedWidth + 'px';
+            panel.style.display = 'flex';
+            panel.style.transition = 'width 0.3s ease';
             toggle.textContent = '▶';
             toggle.title = '展开大纲';
-            
+
             if (contentArea) {
-                contentArea.style.marginLeft = '0';
-                contentArea.style.transition = 'all 0.3s ease';
+                contentArea.style.marginLeft = collapsedWidth + 'px';
+                contentArea.style.transition = 'margin-left 0.3s ease';
             }
         }
     }
