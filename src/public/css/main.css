@@ -687,8 +687,13 @@ body {
         transition: left 0.3s ease;
     }
     
+    /* 移动端展开/收起：展开时置于可见区域；收起时保留把手 */
     .outline-panel.open {
-        left: 240px;
+        left: 0;
+    }
+    .outline-panel.collapsed {
+        left: 0 !important;
+        width: 40px !important;
     }
     
     .mobile-menu-overlay {
