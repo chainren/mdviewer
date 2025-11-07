@@ -2,7 +2,8 @@ import express from 'express';
 import * as path from 'path';
 import * as WebSocket from 'ws';
 import * as chokidar from 'chokidar';
-import { buildFileTree, readMarkdownFile, extractOutline, isMarkdownFile } from './fileUtils';
+import * as fs from 'fs';
+import { buildFileTree, readMarkdownFile, extractOutline, isMarkdownFile, resolveWorkspacePath } from './fileUtils';
 import { FileChangeEvent } from './types';
 
 const app = express();
@@ -42,12 +43,16 @@ app.get('/api/file/:path(*)', (req, res) => {
     if (!content) {
       return res.status(404).json({ error: 'File not found or invalid' });
     }
+    const resolved = resolveWorkspacePath(rawPath);
+    const stat = fs.statSync(resolved);
+    const lastModified = stat.mtimeMs;
     const outline = extractOutline(content);
     
     res.json({
       content,
       outline,
-      path: rawPath
+      path: rawPath,
+      lastModified
     });
   } catch (error: any) {
     console.error('Error reading file:', error);
@@ -63,11 +68,20 @@ app.post('/api/file/:path(*)', async (req, res) => {
   try {
     const rawPath = req.params.path;
     const fsPromises = require('fs').promises;
+
+    // CSRF 基本同源校验
+    const origin = req.headers.origin || '';
+    const referer = req.headers.referer || '';
+    const host = req.headers.host || '';
+    const sameOrigin = (origin.includes(host) || referer.includes(host));
+    if (!sameOrigin) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     
     // 归一化并约束在工作区内，允许新建（另存为）
     let resolved: string;
     try {
-      resolved = require('./fileUtils').resolveWorkspacePath(rawPath, { allowCreate: true });
+      resolved = resolveWorkspacePath(rawPath, { allowCreate: true });
     } catch (e: any) {
       return res.status(400).json({ error: 'Invalid path' });
     }
@@ -80,6 +94,17 @@ app.post('/api/file/:path(*)', async (req, res) => {
       return res.status(400).json({ error: 'Invalid content' });
     }
 
+    // 并发检测：若请求包含客户端 lastModified，与当前文件 mtime 不一致则返回 409
+    let clientMtime: number | undefined = undefined;
+    if (typeof (req.body as any).lastModified === 'number') {
+      clientMtime = (req.body as any).lastModified;
+    }
+    let currentStat: fs.Stats | undefined;
+    try { currentStat = fs.statSync(resolved); } catch {}
+    if (clientMtime && currentStat && Math.round(clientMtime) !== Math.round(currentStat.mtimeMs)) {
+      return res.status(409).json({ error: 'Conflict: file modified by others' });
+    }
+
     // 若目录不存在，可选创建
     const dir = path.dirname(resolved);
     try {
@@ -90,7 +115,8 @@ app.post('/api/file/:path(*)', async (req, res) => {
     await fsPromises.writeFile(resolved, content, 'utf-8');
 
     const outline = extractOutline(content);
-    return res.json({ success: true, path: rawPath, outline });
+    const stat = fs.statSync(resolved);
+    return res.json({ success: true, path: rawPath, outline, lastModified: stat.mtimeMs });
   } catch (error) {
     console.error('Error saving file:', error);
     res.status(500).json({ error: 'Failed to save file' });

@@ -21,6 +21,7 @@
     document.documentElement.setAttribute('data-theme', saved);
   }
 
+  let lastModified = undefined;
   async function loadFile(){
     if(!filePath) return;
     try{
@@ -29,6 +30,7 @@
       if(!res.ok){ throw new Error(`加载失败：${res.status}`); }
       const data = await res.json();
       $('editor-textarea').value = data.content || '';
+      lastModified = data.lastModified;
       scheduleRender();
       setStatus('已加载');
     }catch(err){
@@ -71,12 +73,13 @@
       const res = await fetch(`/api/file/${encodeURIComponent(pathToSave)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content })
+        body: JSON.stringify({ content, lastModified })
       });
       const data = await res.json();
       if(!res.ok || !data.success){
         throw new Error(data.error || '保存失败');
       }
+      lastModified = data.lastModified;
       setStatus('已保存');
     }catch(err){
       console.error(err);
