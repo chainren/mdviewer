@@ -336,11 +336,6 @@ class MarkdownViewerApp {
             panel.style.transition = 'width 0.3s ease';
             toggle.textContent = '◀';
             toggle.title = '收起大纲';
-
-            if (contentArea) {
-                contentArea.style.marginLeft = expandedWidth + 'px';
-                contentArea.style.transition = 'margin-left 0.3s ease';
-            }
         } else {
             // 收起大纲面板（保留狭窄把手，按钮始终可点击以再次展开）
             panel.classList.add('collapsed');
@@ -349,11 +344,6 @@ class MarkdownViewerApp {
             panel.style.transition = 'width 0.3s ease';
             toggle.textContent = '▶';
             toggle.title = '展开大纲';
-
-            if (contentArea) {
-                contentArea.style.marginLeft = collapsedWidth + 'px';
-                contentArea.style.transition = 'margin-left 0.3s ease';
-            }
         }
     }
 
@@ -420,13 +410,22 @@ class MarkdownViewerApp {
     }
 
     handleResize() {
-        // 响应式处理
         const width = window.innerWidth;
+        const panel = document.getElementById('outline-panel');
+        const contentArea = document.querySelector('.content-area');
+        const expandedWidth = 250;
+        const collapsedWidth = 40;
+
         if (width <= 640) {
-            // 移动端适配
+            // 保持可点击把手可见（不再使用 display:none）
             this.outlineVisible = false;
-            document.getElementById('outline-panel').style.display = 'none';
-            
+            panel.classList.add('collapsed');
+            panel.style.display = 'flex';
+            panel.style.width = collapsedWidth + 'px';
+            if (contentArea) {
+                contentArea.style.marginLeft = collapsedWidth + 'px';
+            }
+
             // 移动端强制展开侧边栏（使用移动端菜单逻辑）
             if (this.sidebarCollapsed) {
                 this.sidebarCollapsed = false;
@@ -439,14 +438,25 @@ class MarkdownViewerApp {
                 mainContainer.classList.remove('sidebar-collapsed');
             }
         } else {
-            // 桌面端恢复显示
-            this.outlineVisible = true;
-            document.getElementById('outline-panel').style.display = 'flex';
-            
-            // 桌面端恢复抽屉状态
+            // 桌面端保持抽屉状态与按钮可见
+            panel.style.display = 'flex';
+            if (this.outlineVisible) {
+                panel.classList.remove('collapsed');
+                panel.style.width = expandedWidth + 'px';
+                if (contentArea) {
+                    contentArea.style.marginLeft = expandedWidth + 'px';
+                }
+            } else {
+                panel.classList.add('collapsed');
+                panel.style.width = collapsedWidth + 'px';
+                if (contentArea) {
+                    contentArea.style.marginLeft = collapsedWidth + 'px';
+                }
+            }
+
+            // 桌面端恢复侧栏抽屉状态
             const savedSidebarState = localStorage.getItem('sidebar-collapsed');
             const shouldBeCollapsed = savedSidebarState === 'true';
-            
             if (shouldBeCollapsed !== this.sidebarCollapsed) {
                 this.toggleSidebar();
             }
