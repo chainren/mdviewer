@@ -9,6 +9,47 @@ export function isMarkdownFile(filePath: string): boolean {
   return MARKDOWN_EXTENSIONS.includes(ext);
 }
 
+export function getWorkspaceRootReal(): string {
+  const root = process.cwd();
+  return fs.realpathSync(root);
+}
+
+export function resolveWorkspacePath(rawPath: string, options?: { allowCreate?: boolean }): string {
+  const allowCreate = !!(options && options.allowCreate);
+  const workspaceReal = getWorkspaceRootReal();
+  const resolved = path.resolve(workspaceReal, rawPath);
+
+  // 检查是否仍在工作区内（边界安全）
+  const rel = path.relative(workspaceReal, resolved);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) {
+    throw Object.assign(new Error('Path escapes workspace'), { code: 'EWORKSPACE' });
+  }
+
+  // 针对已存在文件，做 realpath 以规避符号链接逃逸；针对新建文件，校验父目录
+  try {
+    const real = fs.realpathSync(resolved);
+    const relReal = path.relative(workspaceReal, real);
+    if (relReal.startsWith('..') || path.isAbsolute(relReal)) {
+      throw Object.assign(new Error('Real path escapes workspace'), { code: 'EWORKSPACE' });
+    }
+    return real;
+  } catch (err: any) {
+    if (err && err.code === 'ENOENT') {
+      if (!allowCreate) {
+        throw err;
+      }
+      const parent = path.dirname(resolved);
+      const parentReal = fs.realpathSync(parent);
+      const relParent = path.relative(workspaceReal, parentReal);
+      if (relParent.startsWith('..') || path.isAbsolute(relParent)) {
+        throw Object.assign(new Error('Parent escapes workspace'), { code: 'EWORKSPACE' });
+      }
+      return resolved; // 对于新建文件，返回规范化后的路径
+    }
+    throw err;
+  }
+}
+
 export function buildFileTree(dirPath: string, basePath: string = dirPath): FileNode[] {
   const items: FileNode[] = [];
   
@@ -50,14 +91,14 @@ export function buildFileTree(dirPath: string, basePath: string = dirPath): File
   });
 }
 
-export function readMarkdownFile(filePath: string): string {
-  try {
-    const fullPath = path.resolve(filePath);
-    return fs.readFileSync(fullPath, 'utf-8');
-  } catch (error) {
-    console.error(`Error reading file ${filePath}:`, error);
-    return '';
+export function readMarkdownFile(rawPath: string): string {
+  const fullPath = resolveWorkspacePath(rawPath);
+  if (!isMarkdownFile(fullPath)) {
+    const err: any = new Error('Not a markdown file');
+    err.code = 'EBADTYPE';
+    throw err;
   }
+  return fs.readFileSync(fullPath, 'utf-8');
 }
 
 export function extractOutline(content: string): Array<{level: number, text: string, id: string}> {

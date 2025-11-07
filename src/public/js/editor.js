@@ -44,8 +44,10 @@
 
   async function renderPreview(){
     try{
+      const pane = $('preview-pane');
+      if (pane && pane.classList.contains('hidden')) return; // 预览隐藏时跳过渲染
       const content = $('editor-textarea').value;
-      const outline = await renderer.renderContent(content);
+      const outline = await renderer.renderContent(content, 'preview-body');
       // 不使用 outline，这里只负责渲染
     }catch(err){
       console.error('预览渲染失败', err);
@@ -109,15 +111,27 @@
   function goBack(){
     // 若提供 return 参数，优先回到该 URL；否则回到根预览并携带 ?file
     const previewUrl = originUrl || (`/index.html?file=${encodeURIComponent(filePath || '')}`);
+    if (unsaved) {
+      const ok = confirm('存在未保存的更改，确定要返回吗？');
+      if (!ok) return;
+    }
     window.location.href = previewUrl;
   }
 
+  let unsaved = false;
+
   function bindUI(){
-    $('editor-textarea').addEventListener('input', scheduleRender);
-    $('btn-save').addEventListener('click', ()=> saveFile());
-    $('btn-save-as').addEventListener('click', saveAs);
+    $('editor-textarea').addEventListener('input', ()=>{ unsaved = true; scheduleRender(); });
+    $('btn-save').addEventListener('click', ()=> { saveFile(); unsaved = false; });
+    $('btn-save-as').addEventListener('click', ()=> { saveAs(); unsaved = false; });
     $('btn-toggle-preview').addEventListener('click', togglePreview);
     $('btn-back').addEventListener('click', goBack);
+
+    window.addEventListener('beforeunload', (e)=>{
+      if (!unsaved) return;
+      e.preventDefault();
+      e.returnValue = '';
+    });
   }
 
   function init(){

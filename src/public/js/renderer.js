@@ -183,7 +183,7 @@ class MarkdownRenderer {
         }
     }
 
-    async renderContent(content) {
+    async renderContent(content, targetId = 'content-body') {
         const html = await this.renderMarkdown(content);
         
         const tempDiv = document.createElement('div');
@@ -200,8 +200,12 @@ class MarkdownRenderer {
             }
         });
         
-        document.getElementById('content-body').innerHTML = '';
-        document.getElementById('content-body').appendChild(tempDiv);
+        const container = document.getElementById(targetId);
+        if (!container) {
+            throw new Error(`Render target not found: ${targetId}`);
+        }
+        container.innerHTML = '';
+        container.appendChild(tempDiv);
         
         await this.renderMermaidDiagrams();
         
