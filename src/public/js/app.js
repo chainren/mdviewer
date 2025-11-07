@@ -400,13 +400,14 @@ class MarkdownViewerApp {
     editCurrentFile() {
         if (this.currentFile) {
             const filePath = this.currentFile.path;
-            const editUrl = `vscode://file/${window.location.hostname}/${filePath}`;
+            const returnUrl = window.location.pathname + window.location.search;
+            const editUrl = `/editor.html?file=${encodeURIComponent(filePath)}&return=${encodeURIComponent(returnUrl)}`;
             
             try {
-                window.open(editUrl, '_blank');
+                window.location.href = editUrl;
             } catch (error) {
-                console.error('Failed to open file in editor:', error);
-                alert('无法自动打开编辑器，请手动打开文件: ' + filePath);
+                console.error('Failed to open editor page:', error);
+                alert('无法打开编辑器页面，请检查服务器是否运行');
             }
         }
     }

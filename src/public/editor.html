@@ -1,0 +1,63 @@
+<!-- AIGC START -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown Editor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/themes.css">
+    <style>
+        /* 编辑器页面的最小增量样式，复用主站设计变量 */
+        .editor-container { display: flex; height: 100vh; }
+        .editor-toolbar { padding: 0.5rem 1rem; border-bottom: 1px solid var(--border-color); background: var(--bg-secondary); display:flex; justify-content: space-between; align-items:center; }
+        .editor-actions { display:flex; gap:0.5rem; }
+        .editor-main { flex:1; display:flex; }
+        .editor-pane { flex:1; display:flex; flex-direction:column; }
+        .editor-pane.left { border-right: 1px solid var(--border-color); }
+        .editor-textarea { flex:1; width:100%; padding:1rem; border:none; outline:none; font-family: Menlo, Monaco, Consolas, "Courier New", monospace; font-size:14px; background: var(--bg-primary); color: var(--text-primary); }
+        .preview-pane { flex:1; display:flex; flex-direction:column; }
+        .preview-body { flex:1; overflow-y:auto; padding:1rem; background: var(--bg-primary); }
+        .status-bar { padding:0.25rem 1rem; font-size:0.875rem; color: var(--text-secondary); border-top:1px solid var(--border-color); background: var(--bg-secondary); }
+        .split-title { padding:0.5rem 1rem; border-bottom:1px solid var(--border-color); font-size:0.875rem; color: var(--text-secondary); background: var(--bg-secondary); }
+        .hidden { display:none; }
+        @media (max-width: 768px) { .editor-main { flex-direction: column; } .editor-pane.left { border-right:none; border-bottom: 1px solid var(--border-color); } }
+    </style>
+</head>
+<body>
+    <div class="editor-container">
+        <div class="editor-pane" style="flex-basis:100%">
+            <div class="editor-toolbar">
+                <div class="editor-title" id="editor-title">Markdown 编辑器</div>
+                <div class="editor-actions">
+                    <button id="btn-back" class="edit-btn" title="返回预览">⟵ 返回</button>
+                    <button id="btn-save" class="edit-btn" title="保存 (Cmd/Ctrl+S)">💾 保存</button>
+                    <button id="btn-save-as" class="edit-btn" title="另存为">📝 另存为</button>
+                    <button id="btn-toggle-preview" class="edit-btn" title="切换预览">🔁 预览开关</button>
+                </div>
+            </div>
+            <div class="editor-main">
+                <div class="editor-pane left">
+                    <div class="split-title">编辑区</div>
+                    <textarea id="editor-textarea" class="editor-textarea" placeholder="在此输入 Markdown 内容..."></textarea>
+                    <div class="status-bar" id="status">就绪</div>
+                </div>
+                <div class="preview-pane" id="preview-pane">
+                    <div class="split-title">预览区</div>
+                    <div class="preview-body" id="preview-body"></div>
+                    <div class="status-bar">实时渲染 · Mermaid / Prism 支持</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+    <script src="js/renderer.js"></script>
+    <script src="js/editor.js"></script>
+</body>
+</html>
+<!-- AIGC END -->
