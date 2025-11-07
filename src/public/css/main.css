@@ -469,6 +469,20 @@ body {
     white-space: nowrap;
 }
 
+.add-file-btn {
+    margin-left: 0.5rem;
+    border: 1px solid var(--border-color);
+    background: none;
+    border-radius: 0.25rem;
+    padding: 0.1rem 0.4rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+}
+
+.add-file-btn:hover {
+    background: var(--bg-tertiary);
+}
+
 .expand-icon {
     margin-right: 0.25rem;
     width: 12px;

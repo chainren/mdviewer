@@ -314,11 +314,37 @@ class FileTree {
         this.showNotification('目录已刷新');
     }
     
-    createNewFile(parentFile) {
-        const fileName = prompt('请输入新文件名（包含扩展名）:');
-        if (fileName) {
-            this.showNotification(`创建文件: ${fileName}`);
-            // 这里可以添加实际的文件创建逻辑
+    async createNewFile(parentFile) {
+        const fileName = prompt('请输入新文件名（包含扩展名，支持 .md/.markdown/.mdown/.mkd/.mkdn）:');
+        if (!fileName) return;
+        const allowed = ['.md', '.markdown', '.mdown', '.mkd', '.mkdn'];
+        const lower = fileName.toLowerCase();
+        if (!allowed.some(ext => lower.endsWith(ext))) {
+            this.showNotification('仅支持 Markdown 扩展名');
+            return;
+        }
+        const dirPath = parentFile && parentFile.type === 'directory' ? (parentFile.path || parentFile.name) : '';
+        const target = dirPath ? `${dirPath}/${fileName}` : fileName;
+        try {
+            const res = await fetch(`/api/file/${encodeURIComponent(target)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content: '' })
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+                this.showNotification(data.error || `创建失败（${res.status}）`);
+                return;
+            }
+            this.showNotification(`已创建：${target}`);
+            // 刷新文件树，并跳转到编辑器
+            await this.loadFiles();
+            const returnUrl = window.location.pathname + window.location.search;
+            const editUrl = `/editor.html?file=${encodeURIComponent(target)}&return=${encodeURIComponent(returnUrl)}`;
+            window.location.href = editUrl;
+        } catch (err) {
+            console.error('创建文件失败', err);
+            this.showNotification('创建文件失败');
         }
     }
     
@@ -409,6 +435,17 @@ class FileTree {
             name.textContent = file.name;
             name.className = 'file-name';
             element.appendChild(name);
+
+            // 目录级“+”新建文件按钮
+            const addBtn = document.createElement('button');
+            addBtn.className = 'add-file-btn';
+            addBtn.textContent = '+';
+            addBtn.title = '新建文件';
+            addBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.createNewFile(file);
+            });
+            element.appendChild(addBtn);
             
             // 添加双击事件支持
             element.addEventListener('dblclick', (e) => {
