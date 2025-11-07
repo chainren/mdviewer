@@ -289,6 +289,21 @@ body {
     padding: 0.5rem;
 }
 
+/* 抽屉收起样式 */
+.outline-panel.collapsed {
+    width: 40px !important;
+}
+.outline-panel.collapsed .outline-header {
+    padding: 0.25rem;
+    justify-content: center;
+}
+.outline-panel.collapsed .outline-header h3 {
+    display: none;
+}
+.outline-panel.collapsed .outline-content {
+    display: none;
+}
+
 /* 内容区域 */
 .content-area {
     flex: 1;
