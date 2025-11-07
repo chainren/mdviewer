@@ -388,6 +388,10 @@ class FileTree {
         element.className = `file-tree-item ${file.type}`;
         element.style.paddingLeft = `${level * 1.5 + 0.5}rem`;
         element.setAttribute('data-level', level);
+        element.setAttribute('data-name', file.name);
+        if (file.path) {
+            element.setAttribute('data-path', file.path);
+        }
         
         if (file.type === 'directory') {
             const expandIcon = document.createElement('span');
@@ -414,7 +418,6 @@ class FileTree {
             
             element.addEventListener('click', (e) => {
                 e.stopPropagation();
-                this.selectFile(file, element);
                 this.toggleDirectory(file, element);
             });
             
@@ -425,12 +428,15 @@ class FileTree {
                 this.showContextMenu(e, file);
             });
             
-            if (file.expanded && file.children) {
+            if (file.children && file.children.length > 0) {
                 const childrenContainer = document.createElement('div');
-                childrenContainer.className = 'file-tree-children';
+                childrenContainer.className = 'file-tree-children' + (file.expanded ? ' expanded' : '');
                 childrenContainer.style.maxHeight = file.expanded ? '1000px' : '0';
                 childrenContainer.style.overflow = 'hidden';
                 childrenContainer.style.transition = 'max-height 0.3s ease, opacity 0.3s ease';
+                if (file.expanded) {
+                    childrenContainer.style.opacity = '1';
+                }
                 
                 file.children.forEach(child => {
                     childrenContainer.appendChild(this.createFileElement(child, level + 1));
@@ -441,10 +447,11 @@ class FileTree {
                 wrapper.appendChild(element);
                 wrapper.appendChild(childrenContainer);
                 
-                // 添加展开动画
+                // 初次展开的动画
                 if (file.expanded) {
                     setTimeout(() => {
                         childrenContainer.style.maxHeight = childrenContainer.scrollHeight + 'px';
+                        childrenContainer.style.opacity = '1';
                     }, 10);
                 }
                 
@@ -488,7 +495,9 @@ class FileTree {
         // 获取展开图标和文件夹图标
         const expandIcon = element.querySelector('.expand-icon');
         const folderIcon = element.querySelector('.file-icon');
-        const childrenContainer = element.parentElement.querySelector('.file-tree-children');
+        // 精确定位紧邻子容器，避免选到其他层级
+        const sibling = element.nextElementSibling;
+        const childrenContainer = sibling && sibling.classList && sibling.classList.contains('file-tree-children') ? sibling : null;
         
         if (expandIcon) {
             expandIcon.classList.toggle('expanded', directory.expanded);
@@ -502,6 +511,7 @@ class FileTree {
         if (childrenContainer) {
             if (directory.expanded) {
                 // 展开动画
+                childrenContainer.classList.add('expanded');
                 childrenContainer.style.maxHeight = '0';
                 childrenContainer.style.opacity = '0';
                 
@@ -521,10 +531,11 @@ class FileTree {
                 setTimeout(() => {
                     childrenContainer.style.maxHeight = '0';
                     childrenContainer.style.opacity = '0';
+                    childrenContainer.classList.remove('expanded');
                 }, 10);
             }
         } else {
-            // 如果没有子容器，重新渲染整个树
+            // 如果没有子容器，重新渲染整个树，使新结构（含子容器）可见
             this.render();
         }
     }
@@ -538,7 +549,9 @@ class FileTree {
         }
         
         this.currentFile = file;
-        element.classList.add('active');
+        if (element) {
+            element.classList.add('active');
+        }
         
         if (this.onFileSelect) {
             this.onFileSelect(file);
@@ -554,31 +567,60 @@ class FileTree {
         const breadcrumb = document.getElementById('breadcrumb');
         const parts = path.split('/').filter(part => part);
         
-        breadcrumb.innerHTML = '<span class="breadcrumb-item" data-path="">根目录</span>';
+        // 清空面包屑并重新构建，确保移除旧的事件监听器
+        breadcrumb.innerHTML = '';
+        
+        // 添加根目录
+        const rootItem = document.createElement('span');
+        rootItem.className = 'breadcrumb-item';
+        rootItem.setAttribute('data-path', '');
+        rootItem.textContent = '根目录';
+        rootItem.style.cursor = 'pointer';
+        rootItem.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.loadFiles();
+        });
+        breadcrumb.appendChild(rootItem);
         
         let currentPath = '';
         parts.forEach((part, index) => {
+            // 添加分隔符
+            const separator = document.createElement('span');
+            separator.textContent = ' / ';
+            breadcrumb.appendChild(separator);
+            
+            // 添加路径部分
             currentPath += (index === 0 ? '' : '/') + part;
-            breadcrumb.innerHTML += ` / <span class="breadcrumb-item" data-path="${currentPath}">${part}</span>`;
-        });
-        
-        // 为面包屑项添加点击事件
-        const breadcrumbItems = breadcrumb.querySelectorAll('.breadcrumb-item');
-        breadcrumbItems.forEach(item => {
-            item.style.cursor = 'pointer';
-            item.addEventListener('click', () => {
-                const itemPath = item.getAttribute('data-path');
+            const pathItem = document.createElement('span');
+            pathItem.className = 'breadcrumb-item';
+            pathItem.setAttribute('data-path', currentPath);
+            pathItem.textContent = part;
+            pathItem.style.cursor = 'pointer';
+            pathItem.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const itemPath = e.currentTarget.getAttribute('data-path');
                 if (itemPath) {
                     this.navigateToPath(itemPath);
-                } else {
-                    // 根目录，刷新文件树
-                    this.loadFiles();
                 }
             });
+            
+            // 添加悬停效果
+            pathItem.addEventListener('mouseenter', () => {
+                pathItem.style.color = 'var(--accent-color, #007bff)';
+                pathItem.style.textDecoration = 'underline';
+            });
+            
+            pathItem.addEventListener('mouseleave', () => {
+                pathItem.style.color = '';
+                pathItem.style.textDecoration = '';
+            });
+            
+            breadcrumb.appendChild(pathItem);
         });
     }
     
     navigateToPath(targetPath) {
+        console.log('Navigating to path:', targetPath);
         // 查找对应的路径并展开
         const findAndExpandPath = (files, targetPath, currentPath = '') => {
             for (const file of files) {
@@ -586,8 +628,22 @@ class FileTree {
                 
                 if (fullPath === targetPath) {
                     if (file.type === 'directory') {
-                        file.expanded = !file.expanded;
+                        // 确保目录被展开
+                        if (!file.expanded) {
+                            file.expanded = true;
+                        }
                         this.render();
+                        // 滚动到该目录位置
+                        setTimeout(() => {
+                            const element = this.findElementByPath(targetPath);
+                            if (element) {
+                                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                element.classList.add('highlighted');
+                                setTimeout(() => {
+                                    element.classList.remove('highlighted');
+                                }, 1000);
+                            }
+                        }, 100);
                         return true;
                     } else if (file.type === 'file') {
                         this.selectFile(file, null);
@@ -621,6 +677,15 @@ class FileTree {
         }
     }
     
+    findElementByPath(targetPath) {
+        const items = this.container.querySelectorAll('.file-tree-item');
+        for (const item of items) {
+            const path = item.getAttribute('data-path');
+            if (path === targetPath) return item;
+        }
+        return null;
+    }
+
     findFileByPath(files, targetPath, currentPath = '') {
         for (const file of files) {
             const fullPath = currentPath ? `${currentPath}/${file.name}` : file.name;

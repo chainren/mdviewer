@@ -237,7 +237,11 @@ class MarkdownViewerApp {
         const heading = document.getElementById(id);
         if (heading) {
             console.log('Found heading, scrolling to:', id);
-            heading.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            // 确保在正确的容器内滚动
+            const contentBody = document.getElementById('content-body');
+            const headingTop = heading.offsetTop;
+            contentBody.scrollTo({ top: headingTop - 20, behavior: 'smooth' });
+            
             // 高亮显示目标标题
             heading.style.backgroundColor = 'var(--accent-color, #007bff)';
             heading.style.color = 'white';
@@ -319,15 +323,33 @@ class MarkdownViewerApp {
         this.outlineVisible = !this.outlineVisible;
         const panel = document.getElementById('outline-panel');
         const toggle = document.getElementById('toggle-outline');
+        const contentArea = document.querySelector('.content-area');
         
         if (this.outlineVisible) {
+            // 展开大纲面板
+            panel.style.width = '280px';
             panel.style.display = 'flex';
+            panel.style.transition = 'all 0.3s ease';
             toggle.textContent = '◀';
             toggle.title = '收起大纲';
+            
+            if (contentArea) {
+                contentArea.style.marginLeft = '280px';
+                contentArea.style.transition = 'all 0.3s ease';
+            }
         } else {
-            panel.style.display = 'none';
+            // 收起大纲面板
+            panel.style.width = '0';
+            panel.style.padding = '0';
+            panel.style.overflow = 'hidden';
+            panel.style.transition = 'all 0.3s ease';
             toggle.textContent = '▶';
             toggle.title = '展开大纲';
+            
+            if (contentArea) {
+                contentArea.style.marginLeft = '0';
+                contentArea.style.transition = 'all 0.3s ease';
+            }
         }
     }
 
@@ -341,12 +363,15 @@ class MarkdownViewerApp {
         
         if (this.sidebarCollapsed) {
             // 收起侧边栏
-            sidebar.classList.add('collapsed');
+            sidebar.style.width = '0';
+            sidebar.style.padding = '0';
+            sidebar.style.overflow = 'hidden';
+            sidebar.style.transition = 'all 0.3s ease';
+            
             collapsedBar.style.display = 'flex';
-            mainContainer.classList.add('sidebar-collapsed');
+            mainContainer.style.marginLeft = '40px'; // 缩略条宽度
             
             if (toggle) {
-                toggle.classList.add('collapsed');
                 toggle.innerHTML = '<span class="sidebar-icon">▶</span>';
                 toggle.title = '展开文件浏览器';
             }
@@ -355,12 +380,15 @@ class MarkdownViewerApp {
             localStorage.setItem('sidebar-collapsed', 'true');
         } else {
             // 展开侧边栏
-            sidebar.classList.remove('collapsed');
+            sidebar.style.width = '300px';
+            sidebar.style.padding = '16px';
+            sidebar.style.overflow = 'auto';
+            sidebar.style.transition = 'all 0.3s ease';
+            
             collapsedBar.style.display = 'none';
-            mainContainer.classList.remove('sidebar-collapsed');
+            mainContainer.style.marginLeft = '0';
             
             if (toggle) {
-                toggle.classList.remove('collapsed');
                 toggle.innerHTML = '<span class="sidebar-icon">◀</span>';
                 toggle.title = '收起文件浏览器';
             }
