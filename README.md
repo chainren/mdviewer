@@ -134,6 +134,30 @@ EXPOSE 3000
 CMD ["npm", "start"]
 ```
 
+## 📦 单文件打包、安装与使用
+
+支持将项目打包为单个可执行文件并在任何目录运行。
+
+- 打包为单文件（包含静态资源）：
+  ```bash
+  npm run build:bundle
+  # 生成 dist/server.bundle.js（带 shebang，可直接执行）
+  ```
+- 本地用户级安装（方案B，无需 sudo）：
+  ```bash
+  npm run release:local
+  # 将 dist/server.bundle.js 安装到 ~/.local/bin/mdviewer 并加入 PATH
+  ```
+- 运行（默认端口 3000，工作目录为当前目录）：
+  ```bash
+  mdviewer
+  # 或指定端口/目录
+  mdviewer --port 4000 --dir /path/to/markdowns
+  ```
+- WebSocket 端口说明：WS 端口 = HTTP 端口 + 5080，例如 HTTP 4000 则 WS 9080。
+
+提示：如 `mdviewer` 命令不可用，请确保 `~/.local/bin` 已在 PATH 中（zsh/bash 下 `.zprofile` 或 `.bash_profile`）。
+
 ## 🤝 贡献
 
 欢迎提交 Issue 与 Pull Request！如有安全或并发相关问题，请附带复现步骤与 Network/Console 截图便于定位。

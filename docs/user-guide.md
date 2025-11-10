@@ -4,8 +4,16 @@
 
 ## 启动与访问
 
-- 启动：`npm start`
-- 访问：打开浏览器进入 `http://localhost:3000`
+- 启动（开发）：`npm start`
+- 启动（全局CLI，本地安装方案B）：
+  ```bash
+  mdviewer                 # 默认端口 3000，工作目录为当前目录
+  mdviewer --port 4000    # 指定端口
+  mdviewer --dir ~/notes  # 指定工作目录（读取该目录下的 Markdown 文档）
+  mdviewer --port 4000 --dir /path/to/markdowns
+  ```
+- 访问：打开浏览器进入 `http://localhost:<端口>`（默认 3000）
+- WebSocket 端口：= HTTP 端口 + 5080；例如 HTTP 4000 则 WS 为 9080
 
 ## 界面说明
 

@@ -44,6 +44,35 @@ mdviewer/
 - 生产启动：`npm start`
 - 静态资源同步：构建后将 `src/public/` 同步至 `dist/public/`
 
+### 单文件打包与本地安装（方案B）
+
+项目支持将前端静态资源内嵌到 TypeScript 构建产物中，并用 esbuild 打包为单文件 CLI。
+
+- 生成内嵌资源：`npm run embed`（扫描 `src/public/` 生成 `src/embeddedAssets.ts`）
+- 单文件打包：`npm run build:bundle`（输出 `dist/server.bundle.js`，含 shebang）
+- 用户级安装：
+  ```bash
+  npm run release:local
+  # 将 dist/server.bundle.js 安装到 ~/.local/bin/mdviewer 并 chmod +x
+  # 需确保 ~/.local/bin 在 PATH 中（zsh: ~/.zprofile；bash: ~/.bash_profile）
+  ```
+- 运行参数：
+  ```bash
+  mdviewer                  # 默认端口 3000，工作区为当前目录
+  mdviewer --port 4000      # 指定端口
+  mdviewer --dir /path/docs # 指定工作区目录
+  ```
+- WebSocket 端口：= HTTP 端口 + 5080（前端会依据页面端口自动计算 WS 地址）
+
+### 更新与再次发布
+
+- 修改前端/后端代码后，执行：
+  ```bash
+  npm run release:local
+  # 将最新 bundle 覆盖安装到 ~/.local/bin/mdviewer
+  ```
+- 若命令不可用，请检查 PATH：`echo $PATH` 是否包含 `~/.local/bin`。
+
 ## 关键实现
 
 ### MarkdownRenderer（renderer.js）
