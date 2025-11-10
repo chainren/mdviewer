@@ -49,7 +49,13 @@ class MarkdownViewerApp {
 
     setupWebSocket() {
         try {
-            this.websocket = new WebSocket('ws://localhost:8080');
+            // AIGC START
+            const basePort = Number(location.port || 3000);
+            const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws';
+            const wsPort = basePort + 5080;
+            const host = location.hostname;
+            this.websocket = new WebSocket(`${wsProtocol}://${host}:${wsPort}`);
+            //AIGC END
             
             this.websocket.onopen = () => {
                 console.log('WebSocket connected');

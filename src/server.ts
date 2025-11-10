@@ -7,7 +7,38 @@ import { buildFileTree, readMarkdownFile, extractOutline, isMarkdownFile, resolv
 import { FileChangeEvent } from './types';
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+
+// CLI 参数解析：--dir /path/to/workspace，--port 4000
+function parseArg(name: string): string | undefined {
+  const argv = process.argv.slice(2);
+  for (let i = 0; i < argv.length; i++) {
+    const token = argv[i];
+    if (token === `--${name}`) {
+      return argv[i + 1];
+    }
+    if (token.startsWith(`--${name}=`)) {
+      return token.substring(name.length + 3);
+    }
+  }
+  return undefined;
+}
+
+const dirArg = parseArg('dir');
+if (dirArg) {
+  const candidate = path.resolve(process.cwd(), dirArg);
+  const stat = fs.statSync(candidate);
+  if (!stat.isDirectory()) {
+    throw new Error(`--dir 指定路径不是目录: ${candidate}`);
+  }
+  const real = fs.realpathSync(candidate);
+  process.chdir(real);
+  console.log(`[workspace] 使用目录: ${real}`);
+} else {
+  console.log(`[workspace] 使用当前目录: ${process.cwd()}`);
+}
+
+const portArg = parseArg('port');
+const PORT = (portArg ? Number(portArg) : (process.env.PORT ? Number(process.env.PORT) : 3000)) || 3000;
 
 app.use(express.json({ limit: '10mb' }));
 import { assets } from './embeddedAssets';
@@ -36,7 +67,7 @@ app.get('/editor.html', (req, res) => {
   res.send(a.content);
 });
 
-const wss = new WebSocket.Server({ port: 8080 });
+const wss = new WebSocket.Server({ port: PORT + 5080 });
 
 function broadcastChange(event: FileChangeEvent) {
   wss.clients.forEach(client => {
