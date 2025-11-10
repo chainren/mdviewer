@@ -100,8 +100,13 @@ class MarkdownRenderer {
 
     renderPlantUML(code) {
         try {
-            const encoded = this.encodePlantUML(code.trim());
+            const trimmed = code.trim();
+            if (!trimmed) {
+                return '<div class="plantuml"></div>';
+            }
+            const encoded = this.encodePlantUML(trimmed);
             const plantUMLServer = 'https://www.plantuml.com/plantuml/svg/';
+            // 官方推荐：直接 Deflate + 自定义64，无需 ~1；如服务端要求 zlib 封装，可切换 encode 实现
             const url = plantUMLServer + encoded;
             return `<div class="plantuml"><img src="${url}" alt="PlantUML Diagram" loading="lazy"></div>`;
         } catch (error) {
@@ -111,7 +116,20 @@ class MarkdownRenderer {
     }
 
     encodePlantUML(text) {
-        function encode6bit(b) {
+        if (typeof plantumlEncoder !== 'undefined' && typeof plantumlEncoder.encode === 'function') {
+            try {
+                return plantumlEncoder.encode(text);
+            } catch (error) {
+                console.warn('plantuml-encoder failed, using fallback implementation:', error);
+            }
+        }
+        return this.encodePlantUMLFallback(text);
+    }
+
+    encodePlantUMLFallback(text) {
+        const utf8 = new TextEncoder().encode(text);
+
+        const encode6bit = (b) => {
             if (b < 10) return String.fromCharCode(48 + b);
             b -= 10;
             if (b < 26) return String.fromCharCode(65 + b);
@@ -121,32 +139,49 @@ class MarkdownRenderer {
             if (b === 0) return '-';
             if (b === 1) return '_';
             return '?';
-        }
-
-        function append3bytes(b1, b2, b3) {
+        };
+        const append3bytes = (b1, b2, b3) => {
             const c1 = b1 >> 2;
             const c2 = ((b1 & 0x3) << 4) | (b2 >> 4);
             const c3 = ((b2 & 0xF) << 2) | (b3 >> 6);
             const c4 = b3 & 0x3F;
-            
-            let result = "";
-            result += encode6bit(c1 & 0x3F);
-            result += encode6bit(c2 & 0x3F);
-            result += encode6bit(c3 & 0x3F);
-            result += encode6bit(c4 & 0x3F);
-            
-            return result;
+            let res = '';
+            res += encode6bit(c1 & 0x3F);
+            res += encode6bit(c2 & 0x3F);
+            res += encode6bit(c3 & 0x3F);
+            res += encode6bit(c4 & 0x3F);
+            return res;
+        };
+        const encodeBytes = (bytes) => {
+            let out = '';
+            for (let i = 0; i < bytes.length; i += 3) {
+                const b1 = bytes[i];
+                const b2 = i + 1 < bytes.length ? bytes[i + 1] : 0;
+                const b3 = i + 2 < bytes.length ? bytes[i + 2] : 0;
+                out += append3bytes(b1, b2, b3);
+            }
+            return out;
+        };
+
+        if (typeof pako !== 'undefined' && typeof pako.deflateRaw === 'function') {
+            try {
+                const raw = pako.deflateRaw(utf8, { level: 9 });
+                return encodeBytes(raw);
+            } catch (error) {
+                console.warn('PlantUML deflateRaw failed, retrying with zlib wrapper:', error);
+            }
+        }
+        if (typeof pako !== 'undefined' && typeof pako.deflate === 'function') {
+            try {
+                const zlib = pako.deflate(utf8, { level: 9 });
+                return '~0' + encodeBytes(zlib);
+            } catch (error) {
+                console.warn('PlantUML deflate failed, using hex fallback:', error);
+            }
         }
 
-        let result = "";
-        for (let i = 0; i < text.length; i += 3) {
-            const b1 = text.charCodeAt(i);
-            const b2 = i + 1 < text.length ? text.charCodeAt(i + 1) : 0;
-            const b3 = i + 2 < text.length ? text.charCodeAt(i + 2) : 0;
-            result += append3bytes(b1, b2, b3);
-        }
-        
-        return result;
+        const hex = Array.from(utf8).map(b => b.toString(16).padStart(2, '0')).join('');
+        return '~h' + hex;
     }
 
     async renderMarkdown(content) {
