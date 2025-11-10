@@ -9,8 +9,32 @@ import { FileChangeEvent } from './types';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json({ limit: '10mb' }));
+import { assets } from './embeddedAssets';
+
+// 内嵌静态资源服务
+app.get(['/', '/index.html'], (req, res) => {
+  const a = assets['index.html'] || assets['/index.html'] || assets['index.htm'] || assets['/index.htm'];
+  if (!a) return res.status(404).send('Not Found');
+  res.setHeader('Content-Type', a.type);
+  res.send(a.content);
+});
+
+app.get(/^\/(css|js|img|fonts)\/.*$/, (req, res) => {
+  const p = req.path; // 如 /css/main.css
+  const a = assets[p];
+  if (!a) return res.status(404).send('Not Found');
+  res.setHeader('Content-Type', a.type);
+  res.send(a.content);
+});
+
+// 编辑器页面
+app.get('/editor.html', (req, res) => {
+  const a = assets['/editor.html'] || assets['editor.html'];
+  if (!a) return res.status(404).send('Not Found');
+  res.setHeader('Content-Type', a.type);
+  res.send(a.content);
+});
 
 const wss = new WebSocket.Server({ port: 8080 });
 

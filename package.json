@@ -4,30 +4,40 @@
   "description": "A TypeScript Markdown file previewer with live rendering and diagram support",
   "main": "dist/server.js",
   "scripts": {
-    "build": "tsc",
+    "embed": "node scripts/embed-assets.js",
+    "build": "npm run embed && tsc",
+    "build:bundle": "esbuild dist/server.js --bundle --platform=node --target=node18 --outfile=dist/server.bundle.js",
     "start": "node dist/server.js",
+    "start:bundle": "node dist/server.bundle.js",
     "dev": "concurrently \"tsc -w\" \"nodemon dist/server.js\"",
     "clean": "rm -rf dist"
   },
-  "keywords": ["markdown", "viewer", "typescript", "mermaid", "plantuml"],
+  "keywords": [
+    "markdown",
+    "viewer",
+    "typescript",
+    "mermaid",
+    "plantuml"
+  ],
   "author": "Mi Code",
   "license": "MIT",
   "dependencies": {
+    "chokidar": "^3.5.3",
     "express": "^4.18.2",
     "marked": "^9.1.6",
     "marked-highlight": "^2.0.6",
-    "prismjs": "^1.29.0",
     "mermaid": "^10.6.1",
     "plantuml-encoder": "^1.4.0",
-    "chokidar": "^3.5.3",
+    "prismjs": "^1.29.0",
     "ws": "^8.14.2"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@types/node": "^20.10.4",
     "@types/ws": "^8.5.10",
-    "typescript": "^5.3.3",
+    "concurrently": "^8.2.2",
+    "esbuild": "^0.27.0",
     "nodemon": "^3.0.2",
-    "concurrently": "^8.2.2"
+    "typescript": "^5.3.3"
   }
 }
