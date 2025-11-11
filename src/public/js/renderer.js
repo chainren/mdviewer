@@ -269,7 +269,7 @@ class MarkdownRenderer {
                     .replace(/^-|-$/g, '');
                 
                 const headingId = `heading-${id}-${headingIndex}`;
-                outline.push({ level, text, id: headingId });
+                outline.push({ level, text, id: headingId, line: i });
                 headingIndex++;
             }
         }

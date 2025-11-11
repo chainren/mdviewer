@@ -51,6 +51,15 @@ app.get(['/', '/index.html'], (req, res) => {
   res.send(a.content);
 });
 
+app.get(['/icon.svg', '/favicon.svg', '/favicon.ico'], (req, res) => {
+  const key = req.path.startsWith('/') ? req.path : `/${req.path}`;
+  const alt = key.slice(1);
+  const a = assets[key] || assets[alt];
+  if (!a) return res.status(404).send('Not Found');
+  res.setHeader('Content-Type', a.type);
+  res.send(a.content);
+});
+
 app.get(/^\/(css|js|img|fonts)\/.*$/, (req, res) => {
   const p = req.path; // 如 /css/main.css
   const a = assets[p];

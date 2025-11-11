@@ -10,6 +10,7 @@ export interface MarkdownOutline {
   level: number;
   text: string;
   id: string;
+  line: number;
   children?: MarkdownOutline[];
 }
 

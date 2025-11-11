@@ -101,8 +101,8 @@ export function readMarkdownFile(rawPath: string): string {
   return fs.readFileSync(fullPath, 'utf-8');
 }
 
-export function extractOutline(content: string): Array<{level: number, text: string, id: string}> {
-  const outline: Array<{level: number, text: string, id: string}> = [];
+export function extractOutline(content: string): Array<{level: number, text: string, id: string, line: number}> {
+  const outline: Array<{level: number, text: string, id: string, line: number}> = [];
   const lines = content.split('\n');
   let headingIndex = 0;
   
@@ -119,7 +119,7 @@ export function extractOutline(content: string): Array<{level: number, text: str
         .replace(/-+/g, '-')
         .replace(/^-|-$/g, '');
       
-      outline.push({ level, text, id: `heading-${id}-${headingIndex}` });
+      outline.push({ level, text, id: `heading-${id}-${headingIndex}`, line: i });
       headingIndex++;
     }
   }
