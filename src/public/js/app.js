@@ -210,19 +210,149 @@ class MarkdownViewerApp {
         }
 
         container.innerHTML = '';
+        
+        // 构建树形结构
+        const tree = this.buildOutlineTree(outline);
+        this.outlineTree = tree; // 保存引用以便后续使用
+        
+        // 应用默认展开策略：展开第一层（level 1）
+        this.applyDefaultExpansion(tree);
+        
+        // 渲染树形结构
+        this.renderOutlineTree(tree, container);
+        
+        // 添加滚动监听以智能展开
+        this.setupScrollListener();
+    }
+
+    setupScrollListener() {
+        const contentBody = document.getElementById('content-body');
+        let scrollTimeout;
+        
+        const handleScroll = () => {
+            clearTimeout(scrollTimeout);
+            scrollTimeout = setTimeout(() => {
+                this.applySmartExpansion();
+            }, 200); // 200ms 防抖
+        };
+        
+        // 移除之前的监听器（如果存在）
+        if (this.scrollListener) {
+            contentBody.removeEventListener('scroll', this.scrollListener);
+        }
+        
+        // 添加新的监听器
+        this.scrollListener = handleScroll;
+        contentBody.addEventListener('scroll', handleScroll);
+        
+        // 初始调用一次
+        setTimeout(() => {
+            this.applySmartExpansion();
+        }, 500);
+    }
+
+    buildOutlineTree(outline) {
+        const tree = [];
+        const stack = [];
+        
         outline.forEach((item, index) => {
-            console.log('Creating outline item:', item);
-            const element = document.createElement('div');
-            element.className = `outline-item level-${item.level}`;
-            element.textContent = item.text;
-            element.title = item.text;
-            element.setAttribute('data-heading-id', item.id);
-            element.style.cursor = 'pointer';
-            element.style.paddingLeft = `${(item.level - 1) * 16 + 8}px`;
+            const node = {
+                ...item,
+                children: [],
+                expanded: false,
+                hasChildren: false,
+                element: null,
+                childrenContainer: null
+            };
             
+            // 找到父节点
+            while (stack.length > 0 && stack[stack.length - 1].level >= item.level) {
+                stack.pop();
+            }
+            
+            if (stack.length === 0) {
+                tree.push(node);
+            } else {
+                const parent = stack[stack.length - 1];
+                parent.children.push(node);
+                parent.hasChildren = true;
+            }
+            
+            stack.push(node);
+        });
+        
+        return tree;
+    }
+
+    renderOutlineTree(tree, container, level = 0) {
+        tree.forEach(node => {
+            // 创建大纲项容器
+            const itemContainer = document.createElement('div');
+            itemContainer.className = 'outline-item-container';
+            itemContainer.style.position = 'relative';
+            
+            // 创建大纲项
+            const element = document.createElement('div');
+            element.className = `outline-item level-${node.level}`;
+            element.textContent = node.text;
+            element.title = node.text;
+            element.setAttribute('data-heading-id', node.id);
+            element.style.cursor = 'pointer';
+            element.style.paddingLeft = `${(node.level - 1) * 16 + 8}px`;
+            element.style.position = 'relative';
+            
+            // 添加展开/收起按钮（如果有子节点）
+            if (node.hasChildren) {
+                const expandButton = document.createElement('span');
+                expandButton.className = 'outline-expand-btn';
+                expandButton.innerHTML = '▶';
+                expandButton.style.cssText = `
+                    position: absolute;
+                    left: ${(node.level - 1) * 16 + 2}px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    width: 12px;
+                    height: 12px;
+                    cursor: pointer;
+                    font-size: 8px;
+                    line-height: 12px;
+                    text-align: center;
+                    color: var(--text-secondary);
+                    transition: transform 0.2s ease, color 0.2s ease;
+                    user-select: none;
+                `;
+                
+                expandButton.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.toggleOutlineNode(node);
+                });
+                
+                element.appendChild(expandButton);
+                element.style.paddingLeft = `${(node.level - 1) * 16 + 20}px`;
+            } else {
+                // 末级节点添加特殊类
+                element.classList.add('no-children');
+            }
+            
+            // 创建子节点容器
+            const childrenContainer = document.createElement('div');
+            childrenContainer.className = 'outline-children';
+            const isExpanded = node.expanded || false;
+            // 设置初始展开状态
+            if (isExpanded) {
+                childrenContainer.style.maxHeight = '1000px';
+                childrenContainer.style.opacity = '1';
+            } else {
+                childrenContainer.style.maxHeight = '0px';
+                childrenContainer.style.opacity = '0';
+            }
+            childrenContainer.style.overflow = 'hidden';
+            childrenContainer.style.transition = 'max-height 0.3s ease, opacity 0.3s ease';
+            
+            // 添加点击事件
             element.addEventListener('click', () => {
-                console.log('Outline item clicked:', item.id, item.text);
-                this.scrollToHeading(item.id);
+                console.log('Outline item clicked:', node.id, node.text);
+                this.scrollToHeading(node.id);
             });
             
             // 添加悬停效果
@@ -234,7 +364,119 @@ class MarkdownViewerApp {
                 element.style.backgroundColor = '';
             });
             
-            container.appendChild(element);
+            // 保存引用
+            node.element = element;
+            node.childrenContainer = childrenContainer;
+            
+            // 如果默认展开，设置展开按钮状态
+            if (node.expanded && element.querySelector('.outline-expand-btn')) {
+                element.querySelector('.outline-expand-btn').style.transform = 'translateY(-50%) rotate(90deg)';
+            }
+            
+            itemContainer.appendChild(element);
+            itemContainer.appendChild(childrenContainer);
+            container.appendChild(itemContainer);
+            
+            // 递归渲染子节点
+            if (node.children.length > 0) {
+                this.renderOutlineTree(node.children, childrenContainer, level + 1);
+            }
+        });
+    }
+
+    toggleOutlineNode(node) {
+        // 1. 切换节点状态
+        node.expanded = !node.expanded;
+        
+        // 2. 直接获取子容器（不依赖保存的引用）
+        const itemContainer = node.element.parentElement;
+        const childrenContainer = itemContainer.querySelector('.outline-children');
+        
+        // 3. 直接设置样式，使用inline style确保生效
+        if (node.expanded) {
+            childrenContainer.style.maxHeight = '1000px';
+            childrenContainer.style.opacity = '1';
+        } else {
+            childrenContainer.style.maxHeight = '0px';
+            childrenContainer.style.opacity = '0';
+        }
+        
+        // 4. 更新展开按钮样式
+        const expandBtn = node.element.querySelector('.outline-expand-btn');
+        if (expandBtn) {
+            expandBtn.style.transform = node.expanded ? 'translateY(-50%) rotate(90deg)' : 'translateY(-50%) rotate(0deg)';
+        }
+    }
+
+    applyDefaultExpansion(tree, currentLevel = 0, targetLevel = 1) {
+        tree.forEach(node => {
+            // 默认展开策略：展开第一层（level 1）
+            if (node.level <= targetLevel && node.hasChildren) {
+                node.expanded = true;
+            }
+            
+            // 递归处理子节点
+            if (node.children.length > 0) {
+                this.applyDefaultExpansion(node.children, currentLevel + 1, targetLevel);
+            }
+        });
+    }
+
+    // 根据当前视口中的标题位置智能展开
+    applySmartExpansion() {
+        // 获取所有可见的标题元素
+        const headings = document.querySelectorAll('#content-body h1, #content-body h2, #content-body h3, #content-body h4, #content-body h5, #content-body h6');
+        const visibleHeadings = [];
+        
+        headings.forEach(heading => {
+            const rect = heading.getBoundingClientRect();
+            const contentRect = document.getElementById('content-body').getBoundingClientRect();
+            
+            // 检查标题是否在视口中
+            if (rect.top >= contentRect.top && rect.bottom <= contentRect.bottom + 100) {
+                visibleHeadings.push({
+                    id: heading.id,
+                    level: parseInt(heading.tagName.charAt(1)),
+                    text: heading.textContent
+                });
+            }
+        });
+        
+        // 展开当前可见标题及其父级
+        this.expandVisibleHeadings(visibleHeadings);
+    }
+
+    expandVisibleHeadings(visibleHeadings) {
+        if (!this.outlineTree) return;
+        
+        const expandNodeAndParents = (node, targetId) => {
+            if (node.id === targetId) {
+                // 找到目标节点，展开它
+                if (node.hasChildren && !node.expanded) {
+                    this.toggleOutlineNode(node);
+                }
+                return true;
+            }
+            
+            // 在子节点中查找
+            for (let child of node.children) {
+                if (expandNodeAndParents(child, targetId)) {
+                    // 如果找到了，展开当前节点
+                    if (node.hasChildren && !node.expanded) {
+                        this.toggleOutlineNode(node);
+                    }
+                    return true;
+                }
+            }
+            
+            return false;
+        };
+        
+        // 对每个可见标题进行展开
+        visibleHeadings.forEach(heading => {
+            this.outlineTree.forEach(rootNode => {
+                expandNodeAndParents(rootNode, heading.id);
+            });
         });
     }
 

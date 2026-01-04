@@ -607,6 +607,7 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     user-select: none;
+    position: relative;
 }
 
 .outline-item:hover {
@@ -642,6 +643,59 @@ body {
 
 .outline-item.level-6 {
     padding-left: 5.5rem;
+}
+
+/* 大纲展开收起按钮 */
+.outline-expand-btn {
+    position: absolute;
+    left: 2px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 12px;
+    height: 12px;
+    cursor: pointer;
+    font-size: 8px;
+    line-height: 12px;
+    text-align: center;
+    color: var(--text-secondary);
+    transition: transform 0.2s ease, color 0.2s ease;
+    user-select: none;
+    border-radius: 2px;
+}
+
+.outline-expand-btn:hover {
+    color: var(--accent-color);
+    background-color: var(--hover-color);
+}
+
+.outline-expand-btn.expanded {
+    transform: translateY(-50%) rotate(90deg);
+    color: var(--accent-color);
+}
+
+/* 大纲子项容器 */
+.outline-item-container {
+    position: relative;
+}
+
+/* 大纲子节点容器 */
+.outline-children {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+}
+
+/* 末级节点样式 - 不显示展开按钮 */
+.outline-item.no-children .outline-expand-btn {
+    display: none;
+}
+
+/* 大纲项激活状态 */
+.outline-item.active {
+    background-color: var(--hover-color);
+    border-left: 3px solid var(--accent-color);
+    font-weight: 500;
 }
 
 /* 响应式设计 */
