@@ -105,9 +105,86 @@ export function extractOutline(content: string): Array<{level: number, text: str
   const outline: Array<{level: number, text: string, id: string, line: number}> = [];
   const lines = content.split('\n');
   let headingIndex = 0;
+  let inFence = false;
+  let fenceMarker: string | null = null;
+  let inIndent = false;
+  let prevLineIndented = false;
+  let prevLineIsBox = false;
   
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
+    const rawLine = lines[i];
+
+    // 缩进代码块（四空格或 tab）识别
+    const isIndented = /^ {4,}\S|^\t/.test(rawLine);
+    let isCurrentIndentedBlock = false;
+
+    if (inIndent) {
+      if (isIndented || rawLine.trim() === '') {
+        isCurrentIndentedBlock = true;
+      } else {
+        inIndent = false;
+      }
+    }
+    if (!inFence && !inIndent && isIndented) {
+      inIndent = true;
+      isCurrentIndentedBlock = true;
+    }
+
+    // Box drawing check
+    const isBox = /^[─-╿]/.test(rawLine.trim());
+
+    // 修复：使用 ```+ 和 ~~~+ 来匹配3个或更多的字符，捕获完整长度
+    const fenceMatch = rawLine.match(/^\s*(```+|~~~+)/);
+    let isFence = false;
+
+    if (fenceMatch) {
+      const marker = fenceMatch[1];
+      const fenceIndent = fenceMatch[0].indexOf(marker);
+      const restOfLine = rawLine.substring(fenceMatch[0].length).trim();
+
+      // STRICT CLOSING: Must match marker, AND rest of line must be empty
+      const isClosing = inFence && 
+                        fenceMarker && 
+                        marker.startsWith(fenceMarker[0]) && 
+                        marker.length >= fenceMarker.length &&
+                        restOfLine === '';
+
+      if (isClosing) {
+        inFence = false;
+        fenceMarker = null;
+        isFence = true;
+      } else {
+        // Opening or Nested
+        
+        // Heuristic: If previous line was indented block OR box drawing, and this fence is NOT indented (<4 spaces), 
+        // treat it as content (ignore fence start).
+        if (!inFence && (prevLineIndented || prevLineIsBox) && fenceIndent < 4) {
+          isFence = false;
+        } else {
+          if (!inFence) {
+            inFence = true;
+            fenceMarker = marker;
+            isFence = true;
+          } else {
+            // Nested fence or content with info string inside fence -> treat as content
+            isFence = false; 
+          }
+        }
+      }
+    }
+
+    // Update state for next iteration
+    // Only update if line is not empty, otherwise keep state
+    if (rawLine.trim() !== '') {
+        prevLineIndented = isCurrentIndentedBlock;
+        prevLineIsBox = isBox;
+    }
+
+    if (isCurrentIndentedBlock) continue;
+    if (isFence) continue;
+    if (inFence) continue;
+
+    const line = rawLine.trim();
     const match = line.match(/^(#{1,6})\s+(.+)$/);
     
     if (match) {

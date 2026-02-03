@@ -3,8 +3,66 @@ import * as path from 'path';
 import * as WebSocket from 'ws';
 import * as chokidar from 'chokidar';
 import * as fs from 'fs';
-import { buildFileTree, readMarkdownFile, extractOutline, isMarkdownFile, resolveWorkspacePath } from './fileUtils';
+import * as net from 'net';
+import { buildFileTree, readMarkdownFile, extractOutline, isMarkdownFile, resolveWorkspacePath, getWorkspaceRootReal } from './fileUtils';
 import { FileChangeEvent } from './types';
+import * as crypto from 'crypto';
+
+// ==================== 评论数据存储 ====================
+
+const DATA_DIR = path.join(process.cwd(), '.mdviewer-data');
+const COMMENTS_FILE = path.join(DATA_DIR, 'comments.json');
+
+interface Comment {
+  id: string;
+  author: string;
+  ip: string;
+  content: string;
+  time: string;
+  elementId: string;
+  parentId?: string;
+}
+
+interface CommentsStore {
+  [filePath: string]: {
+    [elementId: string]: Comment[];
+  };
+}
+
+let commentsStore: CommentsStore = {};
+
+function ensureDataDir() {
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  }
+}
+
+function loadComments() {
+  try {
+    if (!fs.existsSync(COMMENTS_FILE)) {
+      commentsStore = {};
+      return;
+    }
+    const raw = fs.readFileSync(COMMENTS_FILE, 'utf-8');
+    if (!raw) {
+      commentsStore = {};
+      return;
+    }
+    commentsStore = JSON.parse(raw);
+  } catch (error) {
+    console.error('读取评论数据失败:', error);
+    commentsStore = {};
+  }
+}
+
+function saveComments() {
+  try {
+    ensureDataDir();
+    fs.writeFileSync(COMMENTS_FILE, JSON.stringify(commentsStore, null, 2), 'utf-8');
+  } catch (error) {
+    console.error('写入评论数据失败:', error);
+  }
+}
 
 const app = express();
 
@@ -37,8 +95,9 @@ if (dirArg) {
   console.log(`[workspace] 使用当前目录: ${process.cwd()}`);
 }
 
+const WORKSPACE_ROOT = getWorkspaceRootReal();
 const portArg = parseArg('port');
-const PORT = (portArg ? Number(portArg) : (process.env.PORT ? Number(process.env.PORT) : 3000)) || 3000;
+const PORT = (portArg ? Number(portArg) : (process.env.PORT ? Number(process.env.PORT) : 3001)) || 3001;
 
 app.use(express.json({ limit: '10mb' }));
 import { assets } from './embeddedAssets';
@@ -68,6 +127,16 @@ app.get(/^\/(css|js|img|fonts)\/.*$/, (req, res) => {
   res.send(a.content);
 });
 
+// 工作区静态资源访问
+app.use('/workspace', express.static(WORKSPACE_ROOT, {
+  dotfiles: 'deny',
+  redirect: false
+}));
+
+app.use('/workspace/*', (req, res) => {
+  res.status(404).send('Not Found');
+});
+
 // 编辑器页面
 app.get('/editor.html', (req, res) => {
   const a = assets['/editor.html'] || assets['editor.html'];
@@ -76,9 +145,12 @@ app.get('/editor.html', (req, res) => {
   res.send(a.content);
 });
 
-const wss = new WebSocket.Server({ port: PORT + 5080 });
+// 计算 WebSocket 端口：与 HTTP 端口保持固定偏移，方便客户端推导
+const WS_OFFSET = 5080;
+let wss: WebSocket.Server | null = null;
 
 function broadcastChange(event: FileChangeEvent) {
+  if (!wss) return;
   wss.clients.forEach(client => {
     if (client.readyState === WebSocket.OPEN) {
       client.send(JSON.stringify({
@@ -198,6 +270,109 @@ app.get('/api/outline/:path(*)', (req, res) => {
   }
 });
 
+// ==================== 评论 API ====================
+
+// 获取文件的所有评论
+app.get('/api/comments/:path(*)', (req, res) => {
+  try {
+    const filePath = req.params.path;
+    const fileComments = commentsStore[filePath] || {};
+    res.json({ success: true, comments: fileComments });
+  } catch (error) {
+    console.error('Error getting comments:', error);
+    res.status(500).json({ error: 'Failed to get comments' });
+  }
+});
+
+// 添加评论
+app.post('/api/comments/:path(*)', (req, res) => {
+  try {
+    const filePath = req.params.path;
+    const { elementId, author, content, parentId } = req.body || {};
+
+    if (!elementId || !content) {
+      return res.status(400).json({ error: '缺少必要参数' });
+    }
+
+    const trimmedAuthor = author ? String(author).trim() : 'Anonymous';
+    const trimmedContent = String(content).trim();
+    // 获取 IP 地址
+    const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
+
+    if (!trimmedContent) {
+      return res.status(400).json({ error: '评论内容不能为空' });
+    }
+
+    if (!commentsStore[filePath]) {
+      commentsStore[filePath] = {};
+    }
+
+    if (!commentsStore[filePath][elementId]) {
+      commentsStore[filePath][elementId] = [];
+    }
+
+    // 处理 parentId，防止 "undefined" 字符串
+    const validParentId = (parentId && parentId !== 'undefined' && parentId !== 'null') ? parentId : undefined;
+
+    // 安全的 ID 生成
+    let commentId;
+    try {
+      commentId = crypto.randomUUID();
+    } catch (e) {
+      commentId = Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+    }
+
+    const comment: Comment = {
+      id: commentId,
+      author: trimmedAuthor,
+      ip: ip,
+      content: trimmedContent,
+      time: new Date().toISOString(),
+      elementId: elementId,
+      parentId: validParentId
+    };
+
+    commentsStore[filePath][elementId].push(comment);
+    saveComments();
+
+    res.json({ success: true, comment });
+  } catch (error) {
+    console.error('Error adding comment:', error);
+    res.status(500).json({ error: 'Failed to add comment' });
+  }
+});
+
+// 删除评论
+app.delete('/api/comments/:path(*)', (req, res) => {
+  try {
+    const filePath = req.params.path;
+    const { elementId, commentId } = req.body || {};
+
+    if (!elementId || !commentId) {
+      return res.status(400).json({ error: '缺少必要参数' });
+    }
+
+    if (!commentsStore[filePath] || !commentsStore[filePath][elementId]) {
+      return res.status(404).json({ error: '评论不存在' });
+    }
+
+    const comments = commentsStore[filePath][elementId];
+    const index = comments.findIndex(c => c.id === commentId);
+
+    if (index === -1) {
+      return res.status(404).json({ error: '评论不存在' });
+    }
+
+    comments.splice(index, 1);
+    saveComments();
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting comment:', error);
+    res.status(500).json({ error: 'Failed to delete comment' });
+  }
+});
+
 const watcher = chokidar.watch(process.cwd(), {
   ignored: /node_modules|\.git/,
   persistent: true,
@@ -210,20 +385,67 @@ watcher.on('change', (filePath) => {
   }
 });
 
-wss.on('connection', (ws) => {
-  console.log('WebSocket client connected');
-  
-  ws.send(JSON.stringify({
-    type: 'connection',
-    data: { status: 'connected' }
-  }));
-  
-  ws.on('close', () => {
-    console.log('WebSocket client disconnected');
+async function isPortAvailable(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const tester = net
+      .createServer()
+      .once('error', (err: any) => {
+        if (err && (err.code === 'EADDRINUSE' || err.code === 'EACCES')) {
+          resolve(false);
+        } else {
+          // 其他错误，认为不可用
+          resolve(false);
+        }
+      })
+      .once('listening', () => {
+        tester.close(() => resolve(true));
+      })
+      .listen(port, '0.0.0.0');
   });
-});
+}
 
-app.listen(PORT, () => {
-  console.log(`Markdown Viewer server running on http://localhost:${PORT}`);
-  console.log(`WebSocket server running on ws://localhost:8080`);
+async function findAvailableHttpPort(startPort: number, wsOffset: number): Promise<number> {
+  let candidate = startPort;
+  // 需要同时保证 HTTP 端口与对应的 WebSocket 端口均可用
+  while (true) {
+    const httpOk = await isPortAvailable(candidate);
+    const wsOk = await isPortAvailable(candidate + wsOffset);
+    if (httpOk && wsOk) return candidate;
+    candidate += 1;
+  }
+}
+
+async function start() {
+  // 加载评论数据
+  loadComments();
+
+  // 选择可用端口（若占用则 +1 重试），同时确保对应的 WebSocket 端口也可用
+  const httpPort = await findAvailableHttpPort(PORT, WS_OFFSET);
+
+  // 启动 HTTP 服务
+  const server = app.listen(httpPort, () => {
+    console.log(`Markdown Viewer server running on http://localhost:${httpPort}`);
+  });
+
+  // 启动 WebSocket 服务（固定偏移 wsOffset）
+  const wsPort = httpPort + WS_OFFSET;
+  wss = new WebSocket.Server({ port: wsPort });
+
+  wss.on('connection', (ws) => {
+    console.log('WebSocket client connected');
+    ws.send(JSON.stringify({
+      type: 'connection',
+      data: { status: 'connected' }
+    }));
+    ws.on('close', () => {
+      console.log('WebSocket client disconnected');
+    });
+  });
+
+  console.log(`WebSocket server running on ws://localhost:${wsPort}`);
+}
+
+start().catch((err) => {
+  console.error('Failed to start server:', err);
+  process.exit(1);
 });

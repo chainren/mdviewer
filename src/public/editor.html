@@ -15,12 +15,12 @@
         .editor-toolbar { padding: 0.5rem 1rem; border-bottom: 1px solid var(--border-color); background: var(--bg-secondary); display:flex; justify-content: space-between; align-items:center; }
         .editor-actions { display:flex; gap:0.5rem; align-items:center; }
         .edit-btn-group { display:flex; gap:4px; }
-        .editor-main { flex:1; display:flex; }
-        .editor-pane { flex:1; display:flex; flex-direction:column; }
-        .editor-pane.left { border-right: 1px solid var(--border-color); }
-        .editor-textarea { flex:1; width:100%; padding:1rem; border:none; outline:none; font-family: Menlo, Monaco, Consolas, "Courier New", monospace; font-size:14px; background: var(--bg-primary); color: var(--text-primary); }
-        .preview-pane { flex:1; display:flex; flex-direction:column; }
-        .preview-body { flex:1; overflow-y:auto; padding:1rem; background: var(--bg-primary); }
+        .editor-main { flex:1; display:flex; min-height:0; }
+        .editor-pane { flex:1; display:flex; flex-direction:column; min-height:0; }
+        .editor-pane.left { border-right: 1px solid var(--border-color); min-height:0; }
+        .editor-textarea { flex:1; width:100%; padding:1rem; border:none; outline:none; font-family: Menlo, Monaco, Consolas, "Courier New", monospace; font-size:14px; background: var(--bg-primary); color: var(--text-primary); min-height:0; overflow:auto; }
+        .preview-pane { flex:1; display:flex; flex-direction:column; min-height:0; }
+        .preview-body { flex:1; overflow-y:auto; padding:1rem; background: var(--bg-primary); min-height:0; }
         .preview-body .active-preview-heading {
             background: var(--hover-color, rgba(0, 123, 255, 0.12));
             box-shadow: inset 3px 0 0 var(--accent-color, #007bff);
@@ -119,8 +119,8 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/marked/9.1.6/marked.min.js"></script>
     <script src="js/renderer.js"></script>
     <script src="js/fileTree.js"></script>
     <script src="js/editor.js"></script>

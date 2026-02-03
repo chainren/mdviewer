@@ -17,6 +17,9 @@ class MarkdownViewerApp {
         this.setupFileTree();
         this.setupWebSocket();
         this.setupEventListeners();
+        this.setupResizers();
+        this.setupComments();
+        this.setupCommentFloatingButton();
         this.loadInitialFile();
     }
 
@@ -33,6 +36,159 @@ class MarkdownViewerApp {
             setTimeout(() => {
                 this.toggleSidebar();
             }, 100);
+        }
+    }
+
+    setupCommentFloatingButton() {
+        // 创建悬浮按钮
+        const floatingBtn = document.createElement('div');
+        floatingBtn.className = 'comment-stats-floating';
+        floatingBtn.id = 'comment-floating-stats';
+        
+        floatingBtn.innerHTML = `
+            <span class="comment-stats-count" id="comment-total-count">
+                💬 0
+            </span>
+            <button class="comment-nav-btn" id="comment-prev-btn" title="上一条评论">
+                ▲
+            </button>
+            <button class="comment-nav-btn" id="comment-next-btn" title="下一条评论">
+                ▼
+            </button>
+        `;
+        
+        document.body.appendChild(floatingBtn);
+        
+        document.getElementById('comment-prev-btn').addEventListener('click', () => {
+            this.scrollToComment('prev');
+        });
+        
+        document.getElementById('comment-next-btn').addEventListener('click', () => {
+            this.scrollToComment('next');
+        });
+    }
+
+    updateCommentStats() {
+        // 计算所有评论总数
+        const allComments = document.querySelectorAll('.comment-toggle-btn.has-comments');
+        let totalCount = 0;
+        
+        allComments.forEach(btn => {
+            const text = btn.textContent;
+            const match = text.match(/\((\d+)\)/);
+            if (match) {
+                totalCount += parseInt(match[1]);
+            }
+        });
+        
+        const statsEl = document.getElementById('comment-floating-stats');
+        const countEl = document.getElementById('comment-total-count');
+        
+        if (statsEl && countEl) {
+            countEl.innerHTML = `💬 ${totalCount}`;
+            
+            if (totalCount > 0) {
+                statsEl.classList.add('visible');
+            } else {
+                statsEl.classList.remove('visible');
+            }
+        }
+    }
+
+    scrollToComment(direction) {
+        const contentBody = document.getElementById('content-body');
+        if (!contentBody) return;
+        
+        const currentScrollTop = contentBody.scrollTop;
+        const containerRect = contentBody.getBoundingClientRect();
+        
+        // 目标视口偏移量 (Header 高度 + 留白)
+        const TARGET_OFFSET = 100;
+        // 容差值，用于判定当前元素
+        const THRESHOLD = 5; 
+
+        // 获取所有有评论的区域
+        const commentSections = Array.from(document.querySelectorAll('.comment-section'));
+        const activeSections = commentSections.filter(section => {
+            const btn = section.querySelector('.comment-toggle-btn');
+            return btn && btn.classList.contains('has-comments');
+        });
+        
+        if (activeSections.length === 0) return;
+        
+        let targetSection = null;
+        
+        if (direction === 'next') {
+            // 找到第一个在 [目标位置 + 容差] 下方的评论
+            // 这样可以避免选中当前正在展示的评论
+            targetSection = activeSections.find(section => {
+                const rect = section.getBoundingClientRect();
+                // 必须严格大于当前视线位置，才能算作"下一条"
+                return rect.top > containerRect.top + TARGET_OFFSET + THRESHOLD; 
+            });
+            
+            // 如果没有下一个，回到第一个（循环）
+            if (!targetSection) {
+                 this.showNotification('已是最后一条，回到顶部');
+                 targetSection = activeSections[0];
+            }
+        } else {
+            // 找到第一个在 [目标位置 - 容差] 上方的评论，倒序查找
+            const reversed = [...activeSections].reverse();
+            targetSection = reversed.find(section => {
+                const rect = section.getBoundingClientRect();
+                // 必须严格小于当前视线位置
+                return rect.top < containerRect.top + TARGET_OFFSET - THRESHOLD;
+            });
+            
+             // 如果没有上一个，回到最后一个（循环）
+            if (!targetSection) {
+                 this.showNotification('已是第一条，跳到底部');
+                 targetSection = activeSections[activeSections.length - 1];
+            }
+        }
+        
+        if (targetSection) {
+            // 滚动到该元素
+            const sectionRect = targetSection.getBoundingClientRect();
+            // 计算需要滚动的相对距离
+            const relativeTop = sectionRect.top - containerRect.top;
+            
+            contentBody.scrollTo({
+                top: currentScrollTop + relativeTop - TARGET_OFFSET,
+                behavior: 'smooth'
+            });
+            
+            // 高亮处理
+            const toggleBtn = targetSection.querySelector('.comment-toggle-btn');
+            const element = targetSection.closest('.commentable-element');
+            
+            // 1. 背景闪烁
+            if (element) {
+                const originalBg = element.style.backgroundColor;
+                element.style.transition = 'background-color 0.3s ease';
+                element.style.backgroundColor = 'var(--bg-tertiary)';
+                setTimeout(() => {
+                    element.style.backgroundColor = originalBg;
+                }, 1000);
+            }
+            
+            // 2. 按钮强制显示 5 秒
+            if (toggleBtn) {
+                // 清除之前的定时器（如果有）
+                if (toggleBtn.dataset.forceVisibleTimer) {
+                    clearTimeout(parseInt(toggleBtn.dataset.forceVisibleTimer));
+                }
+                
+                toggleBtn.classList.add('force-visible');
+                
+                const timer = setTimeout(() => {
+                    toggleBtn.classList.remove('force-visible');
+                    delete toggleBtn.dataset.forceVisibleTimer;
+                }, 5000);
+                
+                toggleBtn.dataset.forceVisibleTimer = timer.toString();
+            }
         }
     }
 
@@ -122,6 +278,14 @@ class MarkdownViewerApp {
             });
         }
 
+        // 文件浏览器标题区域的折叠按钮
+        const collapseSidebarBtn = document.getElementById('collapse-sidebar');
+        if (collapseSidebarBtn) {
+            collapseSidebarBtn.addEventListener('click', () => {
+                this.toggleSidebar();
+            });
+        }
+
         // 移动端菜单切换
         const mobileMenuToggle = document.getElementById('mobile-menu-toggle');
         if (mobileMenuToggle) {
@@ -163,6 +327,104 @@ class MarkdownViewerApp {
         });
     }
 
+    setupResizers() {
+        // Sidebar Resizer
+        const sidebarResizer = document.getElementById('resizer-sidebar');
+        const sidebar = document.getElementById('sidebar');
+        
+        if (sidebarResizer && sidebar) {
+            let isResizingSidebar = false;
+            
+            sidebarResizer.addEventListener('mousedown', (e) => {
+                if (this.sidebarCollapsed) return;
+                isResizingSidebar = true;
+                sidebarResizer.classList.add('resizing');
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none'; // 防止拖动时选中文本
+                
+                // 禁用过渡动画以消除滞后感
+                sidebar.style.transition = 'none';
+                
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isResizingSidebar) return;
+                
+                // 限制最小宽度 150px，最大宽度 600px
+                let newWidth = e.clientX;
+                if (newWidth < 150) newWidth = 150;
+                if (newWidth > 600) newWidth = 600;
+                
+                sidebar.style.width = `${newWidth}px`;
+                localStorage.setItem('sidebar-width', newWidth);
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isResizingSidebar) {
+                    isResizingSidebar = false;
+                    sidebarResizer.classList.remove('resizing');
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                    
+                    // 恢复 CSS 定义的过渡动画（移除内联样式）
+                    sidebar.style.transition = '';
+                }
+            });
+        }
+
+        // Outline Resizer
+        const outlineResizer = document.getElementById('resizer-outline');
+        const outlinePanel = document.getElementById('outline-panel');
+        
+        if (outlineResizer && outlinePanel) {
+            let isResizingOutline = false;
+
+            outlineResizer.addEventListener('mousedown', (e) => {
+                if (!this.outlineVisible) return;
+                isResizingOutline = true;
+                outlineResizer.classList.add('resizing');
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+                
+                // 禁用过渡动画
+                outlinePanel.style.transition = 'none';
+                
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isResizingOutline) return;
+                
+                // Outline Start X = Sidebar Width + Sidebar Resizer
+                const sidebarWidth = this.sidebarCollapsed ? 40 : sidebar.getBoundingClientRect().width;
+                // sidebar resizer width is 5px, sidebar collapsed uses 40px fixed
+                const offset = sidebarWidth + (this.sidebarCollapsed ? 0 : 5); 
+                
+                let newWidth = e.clientX - offset;
+                
+                // 限制最小宽度 150px，最大宽度 600px
+                if (newWidth < 150) newWidth = 150;
+                if (newWidth > 600) newWidth = 600;
+
+                outlinePanel.style.width = `${newWidth}px`;
+                localStorage.setItem('outline-width', newWidth);
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isResizingOutline) {
+                    isResizingOutline = false;
+                    outlineResizer.classList.remove('resizing');
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                    
+                    // 恢复 CSS 定义的过渡动画
+                    outlinePanel.style.transition = '';
+                }
+            });
+        }
+    }
+
     async loadFile(file, force = false) {
         if (!file || (this.currentFile && this.currentFile.path === file.path && !force)) {
             return;
@@ -172,6 +434,11 @@ class MarkdownViewerApp {
             this.currentFile = file;
             this.fileTree.setCurrentFile(file);
             this.fileTree.updateBreadcrumb(file.path);
+            
+            // 更新 URL，支持深链接
+            const url = new URL(window.location);
+            url.searchParams.set('file', file.path);
+            window.history.pushState({ path: file.path }, '', url.toString());
             
             // 移动端选择文件后关闭菜单
             if (window.innerWidth <= 640) {
@@ -185,8 +452,9 @@ class MarkdownViewerApp {
             const data = await response.json();
             
             // 使用服务器返回的大纲数据，确保ID一致性
-            await this.renderer.renderContent(data.content);
+            await this.renderer.renderContent(data.content, { basePath: data.path });
             this.renderOutline(data.outline);
+            this.loadComments(file.path);
             
             this.scrollToTop();
         } catch (error) {
@@ -340,7 +608,7 @@ class MarkdownViewerApp {
             const isExpanded = node.expanded || false;
             // 设置初始展开状态
             if (isExpanded) {
-                childrenContainer.style.maxHeight = '1000px';
+                childrenContainer.style.maxHeight = '5000px';
                 childrenContainer.style.opacity = '1';
             } else {
                 childrenContainer.style.maxHeight = '0px';
@@ -394,7 +662,7 @@ class MarkdownViewerApp {
         
         // 3. 直接设置样式，使用inline style确保生效
         if (node.expanded) {
-            childrenContainer.style.maxHeight = '1000px';
+            childrenContainer.style.maxHeight = '5000px';
             childrenContainer.style.opacity = '1';
         } else {
             childrenContainer.style.maxHeight = '0px';
@@ -483,32 +751,36 @@ class MarkdownViewerApp {
     scrollToHeading(id) {
         console.log('Attempting to scroll to heading with ID:', id);
         const heading = document.getElementById(id);
-        if (heading) {
+        const contentBody = document.getElementById('content-body');
+        
+        if (heading && contentBody) {
             console.log('Found heading, scrolling to:', id);
-            // 确保在正确的容器内滚动
-            const contentBody = document.getElementById('content-body');
-            const headingTop = heading.offsetTop;
-            contentBody.scrollTo({ top: headingTop - 20, behavior: 'smooth' });
+            
+            // 核心修复：计算 heading 相对于 contentBody 的准确偏移
+            const bodyRect = contentBody.getBoundingClientRect();
+            const headingRect = heading.getBoundingClientRect();
+            const relativeTop = headingRect.top - bodyRect.top;
+            
+            // 执行滚动
+            contentBody.scrollTo({ 
+                top: contentBody.scrollTop + relativeTop - 20, 
+                behavior: 'smooth' 
+            });
             
             // 高亮显示目标标题
-            heading.style.backgroundColor = 'var(--accent-color, #007bff)';
-            heading.style.color = 'white';
-            heading.style.padding = '2px 8px';
-            heading.style.borderRadius = '4px';
-            heading.style.transition = 'all 0.3s ease';
+            const originalBg = heading.style.backgroundColor;
+            const originalTransition = heading.style.transition;
             
-            // 2秒后移除高亮
+            heading.style.transition = 'background-color 0.3s ease';
+            heading.style.backgroundColor = 'var(--hover-color, rgba(0, 123, 255, 0.2))';
+            heading.style.borderRadius = '4px';
+            
             setTimeout(() => {
-                heading.style.backgroundColor = '';
-                heading.style.color = '';
-                heading.style.padding = '';
-                heading.style.borderRadius = '';
+                heading.style.backgroundColor = originalBg;
+                setTimeout(() => { heading.style.transition = originalTransition; }, 300);
             }, 2000);
         } else {
             console.warn('Heading not found with ID:', id);
-            // 尝试查找所有标题元素
-            const allHeadings = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
-            console.log('Available headings:', Array.from(allHeadings).map(h => ({ id: h.id, text: h.textContent })));
         }
     }
 
@@ -571,27 +843,32 @@ class MarkdownViewerApp {
         const panel = document.getElementById('outline-panel');
         const toggle = document.getElementById('toggle-outline');
         const contentArea = document.querySelector('.content-area');
-        const expandedWidth = 250;
+        const resizer = document.getElementById('resizer-outline');
+        
+        const savedWidth = localStorage.getItem('outline-width');
+        const expandedWidth = savedWidth ? parseInt(savedWidth) : 250;
         const collapsedWidth = 40;
 
         this.outlineVisible = !this.outlineVisible;
 
         if (this.outlineVisible) {
-            // 展开时：移除 collapsed，添加 open（在移动端确保从屏幕外滑入）
+            // 展开时：移除 collapsed，添加 open
             panel.classList.remove('collapsed');
             panel.classList.add('open');
             panel.style.width = expandedWidth + 'px';
             panel.style.display = 'flex';
             panel.style.transition = 'width 0.3s ease';
+            if (resizer) resizer.style.display = 'block';
             toggle.textContent = '◀';
             toggle.title = '收起大纲';
         } else {
-            // 收起时：移除 open，添加 collapsed（移动端保留把手可点击）
+            // 收起时：移除 open，添加 collapsed
             panel.classList.remove('open');
             panel.classList.add('collapsed');
             panel.style.width = collapsedWidth + 'px';
             panel.style.display = 'flex';
             panel.style.transition = 'width 0.3s ease';
+            if (resizer) resizer.style.display = 'none';
             toggle.textContent = '▶';
             toggle.title = '展开大纲';
         }
@@ -604,43 +881,62 @@ class MarkdownViewerApp {
         const mainContainer = document.querySelector('.main-container');
         const toggle = document.getElementById('sidebar-toggle');
         const toggleCollapsed = document.getElementById('sidebar-toggle-collapsed');
-        
+        const collapseSidebarBtn = document.getElementById('collapse-sidebar');
+        const resizer = document.getElementById('resizer-sidebar');
+
         if (this.sidebarCollapsed) {
             // 收起侧边栏
             sidebar.style.width = '0';
             sidebar.style.padding = '0';
             sidebar.style.overflow = 'hidden';
             sidebar.style.transition = 'all 0.3s ease';
-            
+
             collapsedBar.style.display = 'flex';
-            mainContainer.style.marginLeft = '40px'; // 缩略条宽度
-            
+            mainContainer.style.marginLeft = '0'; // 移除左边距，缩略条作为独立元素存在
+            if (resizer) resizer.style.display = 'none';
+
             if (toggle) {
                 toggle.innerHTML = '<span class="sidebar-icon">▶</span>';
                 toggle.title = '展开文件浏览器';
             }
-            
+
+            // 更新文件浏览器标题区域的折叠按钮
+            if (collapseSidebarBtn) {
+                collapseSidebarBtn.textContent = '▶';
+                collapseSidebarBtn.title = '展开文件浏览器';
+            }
+
             // 保存状态到本地存储
             localStorage.setItem('sidebar-collapsed', 'true');
         } else {
             // 展开侧边栏
-            sidebar.style.width = '300px';
+            const savedWidth = localStorage.getItem('sidebar-width');
+            const expandedWidth = savedWidth ? parseInt(savedWidth) : 280; // 这里的默认值280px和CSS一致
+            
+            sidebar.style.width = expandedWidth + 'px';
             sidebar.style.padding = '16px';
             sidebar.style.overflow = 'auto';
             sidebar.style.transition = 'all 0.3s ease';
-            
+
             collapsedBar.style.display = 'none';
             mainContainer.style.marginLeft = '0';
-            
+            if (resizer) resizer.style.display = 'block';
+
             if (toggle) {
                 toggle.innerHTML = '<span class="sidebar-icon">◀</span>';
                 toggle.title = '收起文件浏览器';
             }
-            
+
+            // 更新文件浏览器标题区域的折叠按钮
+            if (collapseSidebarBtn) {
+                collapseSidebarBtn.textContent = '◀';
+                collapseSidebarBtn.title = '折叠文件浏览器';
+            }
+
             // 保存状态到本地存储
             localStorage.setItem('sidebar-collapsed', 'false');
         }
-        
+
         // 触发窗口大小变化事件，让其他组件重新计算布局
         window.dispatchEvent(new Event('resize'));
     }
@@ -664,17 +960,26 @@ class MarkdownViewerApp {
         const width = window.innerWidth;
         const panel = document.getElementById('outline-panel');
         const contentArea = document.querySelector('.content-area');
-        const expandedWidth = 250;
+        
+        const savedOutlineWidth = localStorage.getItem('outline-width');
+        const expandedWidth = savedOutlineWidth ? parseInt(savedOutlineWidth) : 250;
         const collapsedWidth = 40;
+        
+        const resizerSidebar = document.getElementById('resizer-sidebar');
+        const resizerOutline = document.getElementById('resizer-outline');
 
         if (width <= 640) {
+            // 移动端不需要 resizer
+            if (resizerSidebar) resizerSidebar.style.display = 'none';
+            if (resizerOutline) resizerOutline.style.display = 'none';
+
             // 保持可点击把手可见（不再使用 display:none）
             this.outlineVisible = false;
             panel.classList.add('collapsed');
             panel.style.display = 'flex';
             panel.style.width = collapsedWidth + 'px';
             if (contentArea) {
-                contentArea.style.marginLeft = collapsedWidth + 'px';
+                contentArea.style.marginLeft = '0'; // 清除可能存在的 margin
             }
 
             // 移动端强制展开侧边栏（使用移动端菜单逻辑）
@@ -691,17 +996,22 @@ class MarkdownViewerApp {
         } else {
             // 桌面端保持抽屉状态与按钮可见
             panel.style.display = 'flex';
+            
+            // 恢复 Resizer 可见性
+            if (resizerSidebar) resizerSidebar.style.display = this.sidebarCollapsed ? 'none' : 'block';
+            if (resizerOutline) resizerOutline.style.display = this.outlineVisible ? 'block' : 'none';
+
             if (this.outlineVisible) {
                 panel.classList.remove('collapsed');
                 panel.style.width = expandedWidth + 'px';
                 if (contentArea) {
-                    contentArea.style.marginLeft = expandedWidth + 'px';
+                    contentArea.style.marginLeft = '0';
                 }
             } else {
                 panel.classList.add('collapsed');
                 panel.style.width = collapsedWidth + 'px';
                 if (contentArea) {
-                    contentArea.style.marginLeft = collapsedWidth + 'px';
+                    contentArea.style.marginLeft = '0';
                 }
             }
 
@@ -755,7 +1065,7 @@ class MarkdownViewerApp {
         // 尝试从URL参数加载文件
         const urlParams = new URLSearchParams(window.location.search);
         const filePath = urlParams.get('file');
-        
+
         if (filePath) {
             try {
                 const response = await fetch(`/api/file/${encodeURIComponent(filePath)}`);
@@ -767,6 +1077,376 @@ class MarkdownViewerApp {
                 console.error('Error loading initial file:', error);
             }
         }
+    }
+
+    // ==================== 评论功能 ====================
+
+    setupComments() {
+        // 全局事件委托，处理评论按钮点击
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('comment-toggle-btn')) {
+                this.toggleComments(e.target);
+            }
+        });
+
+        // 全局事件委托，处理评论表单提交
+        document.addEventListener('submit', (e) => {
+            if (e.target.classList.contains('comment-form') || e.target.classList.contains('reply-form')) {
+                this.handleCommentSubmit(e);
+            }
+        });
+
+        // 全局事件委托，处理取消按钮
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('comment-cancel-btn')) {
+                this.handleCommentCancel(e);
+            }
+        });
+
+        // 全局事件委托，处理删除评论
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('comment-delete-btn')) {
+                this.handleCommentDelete(e);
+            }
+        });
+
+        // 点击外部关闭评论窗口
+        document.addEventListener('click', (e) => {
+            // 如果点击的是评论切换按钮，不处理（由 toggleComments 处理）
+            if (e.target.closest('.comment-toggle-btn')) return;
+
+            // 如果点击的是评论容器内部或回复表单内部，不关闭
+            if (e.target.closest('.comments-container') || e.target.closest('.reply-form')) return;
+
+            // 关闭所有打开的评论窗口
+            document.querySelectorAll('.comments-container.active').forEach(container => {
+                container.classList.remove('active');
+            });
+
+            // 关闭所有打开的回复表单
+            document.querySelectorAll('.reply-form.active').forEach(form => {
+                form.classList.remove('active');
+            });
+        });
+    }
+
+    async loadComments(filePath) {
+        try {
+            const response = await fetch(`/api/comments/${encodeURIComponent(filePath)}`);
+            const data = await response.json();
+            if (data.success) {
+                this.renderAllComments(data.comments);
+            }
+        } catch (error) {
+            console.error('Error loading comments:', error);
+        }
+    }
+
+    renderAllComments(comments) {
+        // 为每个元素渲染评论
+        for (const [elementId, elementComments] of Object.entries(comments)) {
+            this.renderElementComments(elementId, elementComments);
+        }
+        this.updateCommentStats();
+    }
+
+    renderElementComments(elementId, comments) {
+        const commentSection = document.querySelector(`.comment-section[data-element-id="${elementId}"]`);
+        if (!commentSection) return;
+
+        const toggleBtn = commentSection.querySelector('.comment-toggle-btn');
+        const commentsList = commentSection.querySelector('.comments-list');
+
+        // 更新按钮状态
+        if (comments && comments.length > 0) {
+            toggleBtn.classList.add('has-comments');
+            toggleBtn.textContent = `💬 评论 (${comments.length})`;
+        } else {
+            toggleBtn.classList.remove('has-comments');
+            toggleBtn.textContent = '💬 评论';
+        }
+
+        // 渲染评论列表
+        commentsList.innerHTML = '';
+        if (!comments || comments.length === 0) {
+            commentsList.innerHTML = '<div class="comments-list-empty">暂无评论</div>';
+            return;
+        }
+
+        // 构建树状结构
+        const commentMap = {};
+        const rootComments = [];
+
+        comments.forEach(c => {
+            commentMap[c.id] = { ...c, replies: [] };
+        });
+
+        comments.forEach(c => {
+            if (c.parentId && commentMap[c.parentId]) {
+                commentMap[c.parentId].replies.push(commentMap[c.id]);
+            } else {
+                rootComments.push(commentMap[c.id]);
+            }
+        });
+
+        // 递归渲染
+        const renderCommentTree = (commentNodes, container) => {
+            commentNodes.forEach(node => {
+                const commentEl = this.createCommentElement(node);
+                container.appendChild(commentEl);
+
+                if (node.replies.length > 0) {
+                    const repliesContainer = document.createElement('div');
+                    repliesContainer.className = 'comment-replies';
+                    renderCommentTree(node.replies, repliesContainer);
+                    commentEl.appendChild(repliesContainer);
+                }
+            });
+        };
+
+        renderCommentTree(rootComments, commentsList);
+    }
+
+    createCommentElement(comment) {
+        const commentItem = document.createElement('div');
+        commentItem.className = 'comment-item';
+        commentItem.dataset.commentId = comment.id;
+
+        const header = document.createElement('div');
+        header.className = 'comment-header';
+
+        const author = document.createElement('span');
+        author.className = 'comment-author';
+        author.textContent = comment.ip || comment.author || 'Anonymous';
+
+        const time = document.createElement('span');
+        time.className = 'comment-time';
+        time.textContent = this.formatCommentTime(comment.time);
+
+        header.appendChild(author);
+        header.appendChild(time);
+
+        const content = document.createElement('div');
+        content.className = 'comment-content';
+        content.textContent = comment.content;
+
+        const footer = document.createElement('div');
+        footer.className = 'comment-footer';
+
+        const replyBtn = document.createElement('button');
+        replyBtn.className = 'comment-reply-btn';
+        replyBtn.textContent = '回复';
+        replyBtn.onclick = () => this.toggleReplyForm(commentItem, comment.id, comment.elementId);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'comment-delete-btn';
+        deleteBtn.textContent = '删除';
+        deleteBtn.dataset.commentId = comment.id;
+        deleteBtn.dataset.elementId = comment.elementId;
+
+        footer.appendChild(replyBtn);
+        footer.appendChild(deleteBtn);
+
+        commentItem.appendChild(header);
+        commentItem.appendChild(content);
+        commentItem.appendChild(footer);
+
+        return commentItem;
+    }
+
+    toggleReplyForm(commentItem, parentId, elementId) {
+        let form = commentItem.querySelector('.reply-form');
+        if (form) {
+            form.classList.toggle('active');
+            if (form.classList.contains('active')) {
+                form.querySelector('textarea').focus();
+            }
+        } else {
+            form = document.createElement('form');
+            form.className = 'reply-form active';
+            form.dataset.elementId = elementId;
+            form.dataset.parentId = parentId;
+            form.innerHTML = `
+                <textarea name="content" placeholder="回复..." required></textarea>
+                <div class="comment-actions">
+                    <button type="submit" class="comment-submit-btn">确认</button>
+                    <button type="button" class="comment-cancel-btn">取消</button>
+                </div>
+            `;
+            // 插入到 footer 之后，但在 replies 之前
+            const replies = commentItem.querySelector('.comment-replies');
+            if (replies) {
+                commentItem.insertBefore(form, replies);
+            } else {
+                commentItem.appendChild(form);
+            }
+            form.querySelector('textarea').focus();
+        }
+    }
+
+    toggleComments(btn) {
+        const elementId = btn.dataset.elementId;
+        const container = document.querySelector(`.comments-container[data-element-id="${elementId}"]`);
+        if (container) {
+            container.classList.toggle('active');
+        }
+    }
+
+
+    async handleCommentSubmit(e) {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+        const elementId = form.dataset.elementId;
+        let parentId = form.dataset.parentId;
+        // 清洗 parentId
+        if (parentId === 'undefined' || parentId === 'null' || parentId === '') {
+            parentId = null;
+        }
+
+        const content = (formData.get('content') || '').toString().trim();
+
+        if (!content) {
+            this.showNotification('请填写评论内容');
+            return;
+        }
+
+        if (!this.currentFile) {
+            this.showNotification('未选择文件');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/comments/${encodeURIComponent(this.currentFile.path)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ elementId, content, parentId })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                form.reset();
+                
+                // 如果是回复表单，隐藏它
+                if (form.classList.contains('reply-form')) {
+                    form.classList.remove('active');
+                } else {
+                    // 如果是主表单，关闭容器
+                    const container = document.querySelector(`.comments-container[data-element-id="${elementId}"]`);
+                    if (container) {
+                        container.classList.remove('active');
+                    }
+                }
+                
+                // 重新加载该元素的评论
+                await this.loadComments(this.currentFile.path);
+                this.updateCommentStats();
+                this.showNotification('评论已发布');
+            } else {
+                this.showNotification(data.error || '发布失败');
+            }
+        } catch (error) {
+            console.error('Error submitting comment:', error);
+            this.showNotification('发布失败');
+        }
+    }
+
+    handleCommentCancel(e) {
+        const form = e.target.closest('form');
+        if (form) {
+            form.reset();
+            if (form.classList.contains('reply-form')) {
+                form.classList.remove('active');
+            } else {
+                const container = form.closest('.comments-container');
+                if (container) {
+                    container.classList.remove('active');
+                }
+            }
+        }
+    }
+
+    async handleCommentDelete(e) {
+        if (!confirm('确定要删除这条评论吗？')) {
+            return;
+        }
+
+        const btn = e.target;
+        const commentId = btn.dataset.commentId;
+        const elementId = btn.dataset.elementId;
+
+        if (!this.currentFile) {
+            this.showNotification('未选择文件');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/comments/${encodeURIComponent(this.currentFile.path)}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ elementId, commentId })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                // 重新加载该元素的评论
+                await this.loadComments(this.currentFile.path);
+                this.updateCommentStats();
+                this.showNotification('评论已删除');
+            } else {
+                this.showNotification(data.error || '删除失败');
+            }
+        } catch (error) {
+            console.error('Error deleting comment:', error);
+            this.showNotification('删除失败');
+        }
+    }
+
+    formatCommentTime(isoString) {
+        try {
+            const date = new Date(isoString);
+            const now = new Date();
+            const diff = now - date;
+
+            // 小于 1 分钟
+            if (diff < 60000) {
+                return '刚刚';
+            }
+            // 小于 1 小时
+            if (diff < 3600000) {
+                return `${Math.floor(diff / 60000)} 分钟前`;
+            }
+            // 小于 1 天
+            if (diff < 86400000) {
+                return `${Math.floor(diff / 3600000)} 小时前`;
+            }
+            // 小于 7 天
+            if (diff < 604800000) {
+                return `${Math.floor(diff / 86400000)} 天前`;
+            }
+            // 其他情况显示完整日期
+            return date.toLocaleDateString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch (error) {
+            return isoString;
+        }
+    }
+
+    showNotification(message) {
+        const existing = document.querySelector('.comment-notification');
+        if (existing) existing.remove();
+
+        const notification = document.createElement('div');
+        notification.className = 'comment-notification';
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        setTimeout(() => notification.remove(), 3000);
     }
 }
 

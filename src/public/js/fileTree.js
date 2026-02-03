@@ -1,6 +1,9 @@
 class FileTree {
     constructor() {
         this.container = document.getElementById('file-tree');
+        this.contentWrapper = document.getElementById('file-tree-content');
+        this.sliderWrapper = null;
+        this.sliderInput = null;
         this.files = [];
         this.currentFile = null;
         this.onFileSelect = null;
@@ -14,11 +17,91 @@ class FileTree {
             this.loadFiles();
         });
         
+        // 搜索功能
+        this.setupSearch();
+        
         // 添加键盘导航支持
         this.setupKeyboardNavigation();
         
         // 添加右键菜单支持
         this.setupContextMenu();
+
+        // 已移除显式滑块，保留原生滚动
+    }
+
+    setupSlider() {
+        // 已移除显式滑块，保留原生滚动
+    }
+
+    syncSliderToScroll() {
+        // 无滑块时无需同步
+    }
+
+    setupSearch() {
+        const searchInput = document.getElementById('search-files');
+        const clearBtn = document.getElementById('search-clear');
+        
+        if (!searchInput) return;
+
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim().toLowerCase();
+            clearBtn.style.display = query ? 'block' : 'none';
+            
+            if (query) {
+                this.filterFiles(query);
+            } else {
+                this.render();
+            }
+        });
+
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                searchInput.value = '';
+                clearBtn.style.display = 'none';
+                this.render();
+            });
+        }
+    }
+
+    filterFiles(query) {
+        // 递归过滤：保留包含 query 的文件或目录，以及这些文件/目录的所有子项
+        const filterTree = (files) => {
+            return files
+                .map(file => {
+                    const nameMatch = file.name.toLowerCase().includes(query);
+                    const childrenMatch = file.children && file.children.length > 0
+                        ? filterTree(file.children)
+                        : [];
+                    
+                    if (nameMatch || childrenMatch.length > 0) {
+                        return {
+                            ...file,
+                            expanded: true, // 搜索时自动展开所有目录
+                            children: childrenMatch
+                        };
+                    }
+                    return null;
+                })
+                .filter(file => file !== null);
+        };
+
+        const filtered = filterTree(this.files);
+        this.renderFiltered(filtered);
+    }
+
+    renderFiltered(files) {
+        if (files.length === 0) {
+            this.container.innerHTML = '<div class="placeholder">未找到匹配的文件</div>';
+            return;
+        }
+
+        const target = this.contentWrapper || this.container;
+        target.innerHTML = '';
+        files.forEach(file => {
+            target.appendChild(this.createFileElement(file));
+        });
+
+        this.syncSliderToScroll();
     }
     
     setupKeyboardNavigation() {
@@ -483,28 +566,41 @@ class FileTree {
 
     async loadFiles() {
         try {
-            this.container.innerHTML = '<div class="loading">加载中...</div>';
+            const target = this.contentWrapper || this.container;
+            target.innerHTML = '<div class="loading">加载中...</div>';
             const response = await fetch('/api/files');
             this.files = await response.json();
+            
+            // 如果已经设置了当前文件（例如通过URL加载），则确保展开
+            if (this.currentFile && this.currentFile.path) {
+                this.expandToPath(this.currentFile.path);
+            }
+            
             this.render();
             // 同步到新建弹窗的目录树
             this.renderNewFileTree();
         } catch (error) {
             console.error('Error loading files:', error);
-            this.container.innerHTML = '<div class="error">加载文件失败</div>';
+            const target = this.contentWrapper || this.container;
+            target.innerHTML = '<div class="error">加载文件失败</div>';
         }
     }
 
     render() {
         if (this.files.length === 0) {
-            this.container.innerHTML = '<div class="placeholder">未找到 Markdown 文件</div>';
+            const target = this.contentWrapper || this.container;
+            target.innerHTML = '<div class="placeholder">未找到 Markdown 文件</div>';
             return;
         }
 
-        this.container.innerHTML = '';
+        const target = this.contentWrapper || this.container;
+        target.innerHTML = '';
         this.files.forEach(file => {
-            this.container.appendChild(this.createFileElement(file));
+            target.appendChild(this.createFileElement(file));
         });
+
+        // 渲染后同步滑块
+        this.syncSliderToScroll();
     }
 
     createFileElement(file, level = 0) {
@@ -545,17 +641,28 @@ class FileTree {
             });
             element.appendChild(addBtn);
             
+            // 展开图标的点击事件 - 只切换目录展开状态
+            expandIcon.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.toggleDirectory(file, element);
+            });
+
             // 添加双击事件支持
             element.addEventListener('dblclick', (e) => {
                 e.stopPropagation();
                 this.toggleDirectory(file, element);
             });
-            
+
+            // 目录项的点击事件 - 切换目录展开状态
             element.addEventListener('click', (e) => {
+                // 如果点击的是展开图标或新建按钮，不处理
+                if (e.target === expandIcon || e.target === addBtn) {
+                    return;
+                }
                 e.stopPropagation();
                 this.toggleDirectory(file, element);
             });
-            
+
             // 添加右键菜单事件
             element.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
@@ -566,12 +673,10 @@ class FileTree {
             if (file.children && file.children.length > 0) {
                 const childrenContainer = document.createElement('div');
                 childrenContainer.className = 'file-tree-children' + (file.expanded ? ' expanded' : '');
-                childrenContainer.style.maxHeight = file.expanded ? '1000px' : '0';
+                childrenContainer.style.maxHeight = file.expanded ? 'none' : '0';
                 childrenContainer.style.overflow = 'hidden';
-                childrenContainer.style.transition = 'max-height 0.3s ease, opacity 0.3s ease';
-                if (file.expanded) {
-                    childrenContainer.style.opacity = '1';
-                }
+                childrenContainer.style.transition = 'opacity 0.2s ease';
+                childrenContainer.style.opacity = file.expanded ? '1' : '0';
                 
                 file.children.forEach(child => {
                     childrenContainer.appendChild(this.createFileElement(child, level + 1));
@@ -583,13 +688,8 @@ class FileTree {
                 wrapper.appendChild(childrenContainer);
                 
                 // 初次展开的动画
-                if (file.expanded) {
-                    setTimeout(() => {
-                        childrenContainer.style.maxHeight = childrenContainer.scrollHeight + 'px';
-                        childrenContainer.style.opacity = '1';
-                    }, 10);
-                }
-                
+                // 初次展开无需动画防止截断
+
                 return wrapper;
             }
         } else {
@@ -647,18 +747,8 @@ class FileTree {
             if (directory.expanded) {
                 // 展开动画
                 childrenContainer.classList.add('expanded');
-                childrenContainer.style.maxHeight = '0';
-                childrenContainer.style.opacity = '0';
-                
-                setTimeout(() => {
-                    childrenContainer.style.maxHeight = childrenContainer.scrollHeight + 'px';
-                    childrenContainer.style.opacity = '1';
-                }, 10);
-                
-                // 动画结束后重置max-height
-                setTimeout(() => {
-                    childrenContainer.style.maxHeight = 'none';
-                }, 300);
+                childrenContainer.style.maxHeight = 'none';
+                childrenContainer.style.opacity = '1';
             } else {
                 // 收缩动画
                 childrenContainer.style.maxHeight = childrenContainer.scrollHeight + 'px';
@@ -695,7 +785,28 @@ class FileTree {
 
     setCurrentFile(file) {
         this.currentFile = file;
+        if (file && file.path) {
+            this.expandToPath(file.path);
+        }
         this.render();
+    }
+
+    expandToPath(path) {
+        const parts = path.split('/');
+        let currentFiles = this.files;
+        let currentPath = '';
+
+        // 递归展开父目录
+        for (let i = 0; i < parts.length - 1; i++) {
+            const part = parts[i];
+            const found = currentFiles.find(f => f.name === part && f.type === 'directory');
+            if (found) {
+                found.expanded = true;
+                currentFiles = found.children || [];
+            } else {
+                break;
+            }
+        }
     }
 
     updateBreadcrumb(path) {

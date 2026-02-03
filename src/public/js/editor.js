@@ -114,10 +114,20 @@
       return;
     }
 
-    const { smooth = true, force = false } = options;
+    const { smooth = true, force = false, useOutline = true, highlight = true } = options;
     const line = typeof position.line === 'number' ? position.line : 0;
     const ratio = typeof position.ratio === 'number' ? clamp(position.ratio, 0, 1) : 0;
     const totalLines = Math.max(getTotalLines() - 1, 0);
+    const outlineHasLineInfo = currentOutline.length && currentOutline.every(item => typeof item.line === 'number');
+
+    if (!useOutline || !outlineHasLineInfo) {
+      const top = ratio * Math.max(previewBody.scrollHeight - previewBody.clientHeight, 0);
+      scrollPreview(previewBody, top, smooth);
+      if (highlight) {
+        highlightHeadingByScrollTop(previewBody, top);
+      }
+      return;
+    }
 
     if (!currentOutline.length) {
       const top = ratio * Math.max(previewBody.scrollHeight - previewBody.clientHeight, 0);
@@ -180,6 +190,73 @@
     }
 
     scrollPreview(previewBody, desiredTop, smooth);
+    if (highlight) {
+      highlightHeading(heading);
+      lastSyncedHeadingId = target.id;
+    }
+  }
+
+  function highlightHeadingByScrollTop(previewBody, top) {
+    if (!currentOutline.length) {
+      highlightHeading(null);
+      lastSyncedHeadingId = null;
+      return;
+    }
+
+    let activeHeading = null;
+    for (let i = 0; i < currentOutline.length; i++) {
+      const candidate = document.getElementById(currentOutline[i].id);
+      if (!candidate) {
+        continue;
+      }
+      const offsetTop = computeOffsetInContainer(candidate, previewBody);
+      if (offsetTop <= top + 8) {
+        activeHeading = candidate;
+      } else {
+        break;
+      }
+    }
+
+    if (!activeHeading) {
+      highlightHeading(null);
+      lastSyncedHeadingId = null;
+      return;
+    }
+
+    highlightHeading(activeHeading);
+    lastSyncedHeadingId = activeHeading.id;
+  }
+
+  function highlightHeadingByLine(line) {
+    if (!currentOutline.length) {
+      highlightHeading(null);
+      lastSyncedHeadingId = null;
+      return;
+    }
+
+    let targetIndex = -1;
+    for (let i = 0; i < currentOutline.length; i++) {
+      if (line >= currentOutline[i].line) {
+        targetIndex = i;
+      } else {
+        break;
+      }
+    }
+
+    if (targetIndex === -1) {
+      highlightHeading(null);
+      lastSyncedHeadingId = null;
+      return;
+    }
+
+    const target = currentOutline[targetIndex];
+    const heading = document.getElementById(target.id);
+    if (!heading) {
+      highlightHeading(null);
+      lastSyncedHeadingId = null;
+      return;
+    }
+
     highlightHeading(heading);
     lastSyncedHeadingId = target.id;
   }
@@ -201,6 +278,13 @@
     scheduleSync({ line, ratio }, options);
   }
 
+  function syncPreviewToRatio(ratio, options = {}) {
+    const clampedRatio = clamp(ratio, 0, 1);
+    const totalLines = Math.max(getTotalLines() - 1, 0);
+    const line = Math.round(clampedRatio * totalLines);
+    scheduleSync({ line, ratio: clampedRatio }, options);
+  }
+
   function syncPreviewToScroll() {
     if (isPreviewHidden()) {
       return;
@@ -209,9 +293,7 @@
     if (!ta) return;
     const scrollRange = Math.max(ta.scrollHeight - ta.clientHeight, 1);
     const ratio = ta.scrollTop / scrollRange;
-    const totalLines = Math.max(getTotalLines() - 1, 0);
-    const line = Math.round(ratio * totalLines);
-    scheduleSync({ line, ratio }, { smooth: false, force: true });
+    syncPreviewToRatio(ratio, { smooth: false, force: true, useOutline: false, highlight: true });
   }
 
   async function renderPreview(){
@@ -219,11 +301,11 @@
       const pane = $('preview-pane');
       if (pane && pane.classList.contains('hidden')) return; // 预览隐藏时跳过渲染
       const content = $('editor-textarea').value;
-      const outline = await renderer.renderContent(content, 'preview-body');
+      const outline = await renderer.renderContent(content, { targetId: 'preview-body', basePath: filePath || '' });
       currentOutline = Array.isArray(outline) ? outline : [];
       lastSyncedHeadingId = null;
       highlightHeading(null);
-      syncPreviewToCursor({ smooth: false, force: true });
+      syncPreviewToCursor({ smooth: false, force: true, highlight: false });
     }catch(err){
       console.error('预览渲染失败', err);
     }
@@ -452,11 +534,13 @@
     textarea.addEventListener('input', ()=>{
       unsaved = true;
       scheduleRender();
-      syncPreviewToCursor({ smooth: false, force: true });
+      const scrollRange = Math.max(textarea.scrollHeight - textarea.clientHeight, 1);
+      const ratio = textarea.scrollTop / scrollRange;
+      syncPreviewToRatio(ratio, { smooth: false, force: true });
     });
 
     textarea.addEventListener('mouseup', ()=>{
-      syncPreviewToCursor({ smooth: false, force: true });
+      syncPreviewToCursor({ smooth: false, force: true, highlight: false });
     });
 
     textarea.addEventListener('keyup', (e)=>{
