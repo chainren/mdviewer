@@ -24,6 +24,15 @@
 - 📝 **实时预览**：编辑器内可切换预览模式，支持 Markdown/Mermaid 实时渲染
 - 📄 **新建文件/目录**：右键菜单支持新建 Markdown 文件和文件夹
 
+### 评论与批注
+- 💬 **块级评论**：对标题、段落、表格、列表、引用等块级元素添加评论
+- ✍️ **文本选中评论**：选中任意文本后出现评论气泡，点击即可添加针对选中内容的评论
+- 🔖 **高亮标记**：已评论的文本自动高亮显示（黄色下划线），附带评论数角标
+- 💬 **评论弹窗**：点击高亮文本或角标查看/新增评论，点击外部自动关闭
+- 🧵 **评论线程**：支持评论回复，形成树状评论结构
+- 📊 **评论导航**：右下角浮动按钮显示评论总数，支持上/下翻页定位到评论位置
+- 💾 **评论持久化**：评论数据保存在 `.mdviewer-data/comments.json`，刷新页面后仍存在
+
 ### 交互体验
 - ⌨️ **键盘导航**：文件树支持方向键导航、Enter 打开、Space 展开/折叠
 - 🖱️ **右键菜单**：文件/目录右键菜单（打开、编辑、复制路径、新建、刷新等）
@@ -246,6 +255,21 @@ mdviewer --dir ~/Documents/notes --port 8080
 
 - **GET `/api/outline/:path(*)`**：获取文件大纲
   - 返回：`OutlineItem[]` 标题层级数组
+
+### 评论管理
+- **GET `/api/comments/:path(*)`**：获取文件的所有评论
+  - 返回：`{ success, comments: { [elementId]: Comment[] } }`
+  - Comment 包含：`id`, `author`, `ip`, `content`, `time`, `elementId`, `parentId?`, `selectedText?`, `textOffset?`, `textLength?`
+
+- **POST `/api/comments/:path(*)`**：添加评论
+  - 入参：`{ elementId, content, parentId?, selectedText?, textOffset?, textLength? }`
+  - `selectedText`：选中文本内容（文本选中评论时必填）
+  - `textOffset`/`textLength`：选中文本在元素中的位置信息
+  - 返回：`{ success, comment }`
+
+- **DELETE `/api/comments/:path(*)`**：删除评论
+  - 入参：`{ elementId, commentId }`
+  - 返回：`{ success }`
 
 ### 静态资源
 - **GET `/`, `/index.html`**：预览主页面
@@ -496,6 +520,14 @@ sudo rm /usr/local/bin/mdviewer
 - ✅ 右键菜单新建文件和文件夹
 - ✅ 键盘导航支持（方向键、Enter、Space）
 - ✅ 复制文件路径到剪贴板
+
+#### 评论批注
+- ✅ 块级元素评论（标题、段落、表格、列表、引用等）
+- ✅ 文本选中评论（选中任意文本添加针对性评论）
+- ✅ 已评论文本高亮标记（黄色下划线 + 评论数角标）
+- ✅ 评论回复线程（树状结构）
+- ✅ 评论导航浮动按钮
+- ✅ 评论数据 JSON 文件持久化
 
 #### 流程图支持
 - ✅ Mermaid 客户端渲染（流程图、时序图、甘特图等）

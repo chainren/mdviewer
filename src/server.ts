@@ -21,6 +21,9 @@ interface Comment {
   time: string;
   elementId: string;
   parentId?: string;
+  selectedText?: string;
+  textOffset?: number;
+  textLength?: number;
 }
 
 interface CommentsStore {
@@ -288,7 +291,7 @@ app.get('/api/comments/:path(*)', (req, res) => {
 app.post('/api/comments/:path(*)', (req, res) => {
   try {
     const filePath = req.params.path;
-    const { elementId, author, content, parentId } = req.body || {};
+    const { elementId, author, content, parentId, selectedText, textOffset, textLength } = req.body || {};
 
     if (!elementId || !content) {
       return res.status(400).json({ error: '缺少必要参数' });
@@ -329,7 +332,10 @@ app.post('/api/comments/:path(*)', (req, res) => {
       content: trimmedContent,
       time: new Date().toISOString(),
       elementId: elementId,
-      parentId: validParentId
+      parentId: validParentId,
+      ...(selectedText ? { selectedText: String(selectedText) } : {}),
+      ...(textOffset !== undefined ? { textOffset: Number(textOffset) } : {}),
+      ...(textLength !== undefined ? { textLength: Number(textLength) } : {})
     };
 
     commentsStore[filePath][elementId].push(comment);

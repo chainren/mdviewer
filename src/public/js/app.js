@@ -19,6 +19,7 @@ class MarkdownViewerApp {
         this.setupEventListeners();
         this.setupResizers();
         this.setupComments();
+        this.setupSelectionComment();
         this.setupCommentFloatingButton();
         this.loadInitialFile();
     }
@@ -1089,8 +1090,9 @@ class MarkdownViewerApp {
             }
         });
 
-        // 全局事件委托，处理评论表单提交
+        // 全局事件委托，处理评论表单提交（排除选中文本评论弹窗中的 form）
         document.addEventListener('submit', (e) => {
+            if (e.target.closest('.selection-comment-popover')) return;
             if (e.target.classList.contains('comment-form') || e.target.classList.contains('reply-form')) {
                 this.handleCommentSubmit(e);
             }
@@ -1118,6 +1120,12 @@ class MarkdownViewerApp {
             // 如果点击的是评论容器内部或回复表单内部，不关闭
             if (e.target.closest('.comments-container') || e.target.closest('.reply-form')) return;
 
+            // 如果点击的是选中文本评论相关元素，不关闭
+            if (e.target.closest('.selection-comment-popover') ||
+                e.target.closest('.selection-comment-bubble') ||
+                e.target.closest('.commented-text') ||
+                e.target.closest('.commented-text-badge')) return;
+
             // 关闭所有打开的评论窗口
             document.querySelectorAll('.comments-container.active').forEach(container => {
                 container.classList.remove('active');
@@ -1128,6 +1136,466 @@ class MarkdownViewerApp {
                 form.classList.remove('active');
             });
         });
+    }
+
+    // ==================== 文本选中评论功能 ====================
+
+    setupSelectionComment() {
+        this._selectionBubble = null;
+        this._selectionPopover = null;
+
+        // 监听鼠标弹起事件，检测文本选中
+        document.addEventListener('mouseup', (e) => {
+            // 不在评论弹窗或气泡内触发
+            if (e.target.closest('.selection-comment-bubble') ||
+                e.target.closest('.selection-comment-popover') ||
+                e.target.closest('.comments-container')) {
+                return;
+            }
+            // 延迟检测，让浏览器完成选区
+            setTimeout(() => this._handleTextSelection(e), 10);
+        });
+
+        // 点击已标注文本时显示评论弹窗
+        document.addEventListener('click', (e) => {
+            const badge = e.target.closest('.commented-text-badge');
+            const commentedText = e.target.closest('.commented-text');
+            if (badge || commentedText) {
+                e.preventDefault();
+                e.stopPropagation();
+                const target = badge || commentedText;
+                const elementId = target.dataset.elementId;
+                const commentId = target.dataset.selCommentId;
+                this._showSelectionCommentPopover(target, elementId, commentId);
+                return;
+            }
+
+            // 点击弹窗外部关闭
+            if (this._selectionPopover &&
+                !e.target.closest('.selection-comment-popover') &&
+                !e.target.closest('.selection-comment-bubble')) {
+                this._removeSelectionPopover();
+            }
+        });
+
+        // 选区变化时移除气泡（如果选区被清除）
+        document.addEventListener('selectionchange', () => {
+            const sel = window.getSelection();
+            if (!sel || sel.isCollapsed) {
+                // 延迟移除，防止点击气泡时选区先消失
+                this._pendingBubbleRemove = setTimeout(() => {
+                    this._removeSelectionBubble();
+                }, 200);
+            }
+        });
+    }
+
+    _handleTextSelection(e) {
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed || !sel.rangeCount) {
+            return;
+        }
+
+        const selectedText = sel.toString().trim();
+        if (!selectedText || selectedText.length < 1) {
+            return;
+        }
+
+        // 确保选中的内容在内容区域内
+        const contentBody = document.getElementById('content-body');
+        if (!contentBody) return;
+
+        const range = sel.getRangeAt(0);
+        if (!contentBody.contains(range.commonAncestorContainer)) {
+            return;
+        }
+
+        // 找到所属的 commentable-element
+        const startNode = range.startContainer.nodeType === Node.TEXT_NODE
+            ? range.startContainer.parentElement
+            : range.startContainer;
+        const commentableEl = startNode.closest('.commentable-element');
+        if (!commentableEl) return;
+
+        const elementId = commentableEl.dataset.elementId;
+        if (!elementId) return;
+
+        // 计算文本偏移量（相对于 commentable-element 的文本内容）
+        const textOffset = this._getTextOffsetInElement(commentableEl, range.startContainer, range.startOffset);
+
+        // 显示浮动评论气泡
+        this._showSelectionBubble(range, elementId, selectedText, textOffset);
+    }
+
+    _getTextOffsetInElement(rootEl, targetNode, targetOffset) {
+        const walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT);
+        let offset = 0;
+        let node;
+        while ((node = walker.nextNode())) {
+            if (node === targetNode) {
+                return offset + targetOffset;
+            }
+            // 跳过评论区域的文本节点
+            if (node.parentElement.closest('.comment-section')) continue;
+            offset += node.textContent.length;
+        }
+        return offset;
+    }
+
+    _showSelectionBubble(range, elementId, selectedText, textOffset) {
+        this._removeSelectionBubble();
+
+        const rect = range.getBoundingClientRect();
+        const bubble = document.createElement('button');
+        bubble.className = 'selection-comment-bubble';
+        bubble.innerHTML = '💬 评论选中';
+        bubble.style.left = `${rect.left + rect.width / 2 - 45 + window.scrollX}px`;
+        bubble.style.top = `${rect.top - 36 + window.scrollY}px`;
+
+        bubble.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // 取消延迟移除
+            if (this._pendingBubbleRemove) {
+                clearTimeout(this._pendingBubbleRemove);
+                this._pendingBubbleRemove = null;
+            }
+        });
+
+        bubble.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this._openSelectionCommentForm(elementId, selectedText, textOffset, rect);
+            this._removeSelectionBubble();
+            window.getSelection().removeAllRanges();
+        });
+
+        document.body.appendChild(bubble);
+        this._selectionBubble = bubble;
+    }
+
+    _removeSelectionBubble() {
+        if (this._selectionBubble) {
+            this._selectionBubble.remove();
+            this._selectionBubble = null;
+        }
+    }
+
+    _removeSelectionPopover() {
+        if (this._selectionPopover) {
+            this._selectionPopover.remove();
+            this._selectionPopover = null;
+        }
+    }
+
+    _openSelectionCommentForm(elementId, selectedText, textOffset, rect) {
+        this._removeSelectionPopover();
+
+        const popover = document.createElement('div');
+        popover.className = 'selection-comment-popover';
+
+        const previewText = selectedText.length > 40
+            ? selectedText.substring(0, 40) + '...'
+            : selectedText;
+
+        popover.innerHTML = `
+            <div class="popover-header">
+                <span class="selected-text-preview" title="${selectedText.replace(/"/g, '&quot;')}">"${previewText}"</span>
+                <button class="popover-close-btn" title="关闭">&times;</button>
+            </div>
+            <div class="comments-list"></div>
+            <form class="comment-form" data-element-id="${elementId}" data-selected-text="${encodeURIComponent(selectedText)}" data-text-offset="${textOffset}" data-text-length="${selectedText.length}">
+                <textarea name="content" placeholder="添加评论..." required></textarea>
+                <div class="comment-actions">
+                    <button type="submit" class="comment-submit-btn">确认</button>
+                    <button type="button" class="comment-cancel-btn">取消</button>
+                </div>
+            </form>
+        `;
+
+        // 定位弹窗
+        popover.style.left = `${Math.max(10, Math.min(rect.left + window.scrollX, window.innerWidth - 370))}px`;
+        popover.style.top = `${rect.bottom + 8 + window.scrollY}px`;
+
+        // 关闭按钮
+        popover.querySelector('.popover-close-btn').addEventListener('click', () => {
+            this._removeSelectionPopover();
+        });
+
+        // 表单提交
+        const form = popover.querySelector('.comment-form');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this._submitSelectionComment(form);
+        });
+
+        // 取消按钮
+        popover.querySelector('.comment-cancel-btn').addEventListener('click', () => {
+            this._removeSelectionPopover();
+        });
+
+        document.body.appendChild(popover);
+        this._selectionPopover = popover;
+        popover.querySelector('textarea').focus();
+    }
+
+    async _submitSelectionComment(form) {
+        const elementId = form.dataset.elementId;
+        const selectedText = decodeURIComponent(form.dataset.selectedText);
+        const textOffset = parseInt(form.dataset.textOffset);
+        const textLength = parseInt(form.dataset.textLength);
+        const content = form.querySelector('textarea').value.trim();
+
+        if (!content) {
+            this.showNotification('请填写评论内容');
+            return;
+        }
+
+        if (!this.currentFile) {
+            this.showNotification('未选择文件');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/comments/${encodeURIComponent(this.currentFile.path)}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    elementId,
+                    content,
+                    selectedText,
+                    textOffset,
+                    textLength
+                })
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                this._removeSelectionPopover();
+                await this.loadComments(this.currentFile.path);
+                this.updateCommentStats();
+                this.showNotification('评论已发布');
+            } else {
+                this.showNotification(data.error || '发布失败');
+            }
+        } catch (error) {
+            console.error('Error submitting selection comment:', error);
+            this.showNotification('发布失败');
+        }
+    }
+
+    _showSelectionCommentPopover(targetEl, elementId, commentId) {
+        this._removeSelectionPopover();
+
+        const rect = targetEl.getBoundingClientRect();
+        const popover = document.createElement('div');
+        popover.className = 'selection-comment-popover';
+        popover.dataset.elementId = elementId;
+
+        const selectedText = targetEl.closest('.commented-text')?.dataset.selectedText || targetEl.dataset.selectedText || '';
+        const previewText = selectedText.length > 40
+            ? selectedText.substring(0, 40) + '...'
+            : selectedText;
+
+        popover.innerHTML = `
+            <div class="popover-header">
+                <span class="selected-text-preview" title="${selectedText.replace(/"/g, '&quot;')}">"${previewText}"</span>
+                <button class="popover-close-btn" title="关闭">&times;</button>
+            </div>
+            <div class="comments-list"></div>
+            <form class="comment-form" data-element-id="${elementId}" data-selected-text="${encodeURIComponent(selectedText)}" data-text-offset="${targetEl.closest('.commented-text')?.dataset.textOffset || 0}" data-text-length="${selectedText.length}">
+                <textarea name="content" placeholder="回复评论..." required></textarea>
+                <div class="comment-actions">
+                    <button type="submit" class="comment-submit-btn">确认</button>
+                    <button type="button" class="comment-cancel-btn">取消</button>
+                </div>
+            </form>
+        `;
+
+        // 定位
+        popover.style.left = `${Math.max(10, Math.min(rect.left + window.scrollX, window.innerWidth - 370))}px`;
+        popover.style.top = `${rect.bottom + 8 + window.scrollY}px`;
+
+        // 关闭按钮
+        popover.querySelector('.popover-close-btn').addEventListener('click', () => {
+            this._removeSelectionPopover();
+        });
+
+        // 表单提交
+        const form = popover.querySelector('.comment-form');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await this._submitSelectionComment(form);
+        });
+
+        // 取消按钮
+        popover.querySelector('.comment-cancel-btn').addEventListener('click', () => {
+            this._removeSelectionPopover();
+        });
+
+        document.body.appendChild(popover);
+        this._selectionPopover = popover;
+
+        // 加载该选中文本的评论
+        this._loadSelectionComments(popover, elementId, selectedText);
+    }
+
+    async _loadSelectionComments(popover, elementId, selectedText) {
+        if (!this.currentFile) return;
+
+        try {
+            const response = await fetch(`/api/comments/${encodeURIComponent(this.currentFile.path)}`);
+            const data = await response.json();
+            if (!data.success) return;
+
+            const elementComments = data.comments[elementId] || [];
+            // 过滤出属于同一选中文本的评论
+            const selComments = elementComments.filter(c => c.selectedText === selectedText);
+
+            const commentsList = popover.querySelector('.comments-list');
+            commentsList.innerHTML = '';
+
+            if (selComments.length === 0) {
+                commentsList.innerHTML = '<div class="comments-list-empty">暂无评论</div>';
+                return;
+            }
+
+            selComments.forEach(comment => {
+                const el = this.createCommentElement(comment);
+                commentsList.appendChild(el);
+            });
+        } catch (error) {
+            console.error('Error loading selection comments:', error);
+        }
+    }
+
+    // 在已渲染的内容中高亮已评论的选中文本
+    _highlightCommentedSelections(comments) {
+        const contentBody = document.getElementById('content-body');
+        if (!contentBody) return;
+
+        for (const [elementId, elementComments] of Object.entries(comments)) {
+            // 只处理有 selectedText 的评论
+            const selectionComments = elementComments.filter(c => c.selectedText);
+            if (selectionComments.length === 0) continue;
+
+            const commentableEl = contentBody.querySelector(`.commentable-element[data-element-id="${elementId}"]`);
+            if (!commentableEl) continue;
+
+            // 按 selectedText 分组
+            const textGroups = {};
+            selectionComments.forEach(c => {
+                const key = c.selectedText;
+                if (!textGroups[key]) {
+                    textGroups[key] = { text: c.selectedText, offset: c.textOffset, count: 0, commentId: c.id };
+                }
+                textGroups[key].count++;
+            });
+
+            // 对每组进行高亮
+            for (const group of Object.values(textGroups)) {
+                this._wrapTextWithHighlight(commentableEl, group.text, elementId, group.count, group.commentId);
+            }
+        }
+    }
+
+    _wrapTextWithHighlight(rootEl, searchText, elementId, commentCount, commentId) {
+        if (!searchText) return;
+
+        const walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT, {
+            acceptNode(node) {
+                // 跳过评论区域
+                if (node.parentElement.closest('.comment-section') ||
+                    node.parentElement.closest('.commented-text') ||
+                    node.parentElement.closest('.commented-text-badge')) {
+                    return NodeFilter.FILTER_REJECT;
+                }
+                return NodeFilter.FILTER_ACCEPT;
+            }
+        });
+
+        const textNodes = [];
+        let node;
+        while ((node = walker.nextNode())) {
+            textNodes.push(node);
+        }
+
+        // 在文本节点中查找 searchText（可能跨节点）
+        const fullText = textNodes.map(n => n.textContent).join('');
+        const matchIndex = fullText.indexOf(searchText);
+        if (matchIndex === -1) return;
+
+        // 定位到具体的文本节点和偏移
+        let currentOffset = 0;
+        let startNodeIdx = -1, startOff = 0;
+        let endNodeIdx = -1, endOff = 0;
+        const matchEnd = matchIndex + searchText.length;
+
+        for (let i = 0; i < textNodes.length; i++) {
+            const len = textNodes[i].textContent.length;
+            if (startNodeIdx === -1 && currentOffset + len > matchIndex) {
+                startNodeIdx = i;
+                startOff = matchIndex - currentOffset;
+            }
+            if (endNodeIdx === -1 && currentOffset + len >= matchEnd) {
+                endNodeIdx = i;
+                endOff = matchEnd - currentOffset;
+                break;
+            }
+            currentOffset += len;
+        }
+
+        if (startNodeIdx === -1 || endNodeIdx === -1) return;
+
+        // 用 Range + surroundContents 或手动拆分节点包裹
+        try {
+            const range = document.createRange();
+            range.setStart(textNodes[startNodeIdx], startOff);
+            range.setEnd(textNodes[endNodeIdx], endOff);
+
+            const wrapper = document.createElement('span');
+            wrapper.className = 'commented-text';
+            wrapper.dataset.elementId = elementId;
+            wrapper.dataset.selCommentId = commentId;
+            wrapper.dataset.selectedText = searchText;
+
+            range.surroundContents(wrapper);
+
+            // 添加气泡角标
+            const badge = document.createElement('span');
+            badge.className = 'commented-text-badge';
+            badge.dataset.elementId = elementId;
+            badge.dataset.selCommentId = commentId;
+            badge.dataset.selectedText = searchText;
+            badge.textContent = `💬${commentCount > 1 ? commentCount : ''}`;
+            wrapper.after(badge);
+        } catch (e) {
+            // surroundContents 在跨元素时会失败，使用 extractContents + wrapper
+            try {
+                const range = document.createRange();
+                range.setStart(textNodes[startNodeIdx], startOff);
+                range.setEnd(textNodes[endNodeIdx], endOff);
+
+                const fragment = range.extractContents();
+                const wrapper = document.createElement('span');
+                wrapper.className = 'commented-text';
+                wrapper.dataset.elementId = elementId;
+                wrapper.dataset.selCommentId = commentId;
+                wrapper.dataset.selectedText = searchText;
+                wrapper.appendChild(fragment);
+                range.insertNode(wrapper);
+
+                const badge = document.createElement('span');
+                badge.className = 'commented-text-badge';
+                badge.dataset.elementId = elementId;
+                badge.dataset.selCommentId = commentId;
+                badge.dataset.selectedText = searchText;
+                badge.textContent = `💬${commentCount > 1 ? commentCount : ''}`;
+                wrapper.after(badge);
+            } catch (e2) {
+                console.warn('Failed to highlight text:', searchText, e2);
+            }
+        }
     }
 
     async loadComments(filePath) {
@@ -1143,10 +1611,22 @@ class MarkdownViewerApp {
     }
 
     renderAllComments(comments) {
-        // 为每个元素渲染评论
+        // 先清除旧的高亮标记
+        document.querySelectorAll('.commented-text').forEach(el => {
+            const parent = el.parentNode;
+            while (el.firstChild) parent.insertBefore(el.firstChild, el);
+            el.remove();
+        });
+        document.querySelectorAll('.commented-text-badge').forEach(el => el.remove());
+
+        // 为每个元素渲染块级评论
         for (const [elementId, elementComments] of Object.entries(comments)) {
             this.renderElementComments(elementId, elementComments);
         }
+
+        // 高亮已评论的选中文本
+        this._highlightCommentedSelections(comments);
+
         this.updateCommentStats();
     }
 

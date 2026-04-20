@@ -1603,3 +1603,107 @@ body {
         padding: 0.4rem 0.8rem;
     }
 }
+
+/* ==================== 文本选中评论功能 ==================== */
+
+/* 选中文本后出现的浮动评论按钮 */
+.selection-comment-bubble {
+    position: absolute;
+    background: var(--accent-color);
+    color: white;
+    border: none;
+    border-radius: 0.375rem;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.75rem;
+    cursor: pointer;
+    z-index: 1100;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    white-space: nowrap;
+    animation: bubbleFadeIn 0.15s ease;
+    user-select: none;
+}
+
+.selection-comment-bubble:hover {
+    filter: brightness(1.1);
+}
+
+@keyframes bubbleFadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* 已标注的选中文本高亮 */
+.commented-text {
+    background-color: rgba(255, 213, 79, 0.3);
+    border-bottom: 2px solid var(--accent-color);
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.2s ease;
+}
+
+.commented-text:hover {
+    background-color: rgba(255, 213, 79, 0.5);
+}
+
+/* 高亮文本右上角的评论气泡图标 */
+.commented-text-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    color: var(--accent-color);
+    margin-left: 1px;
+    cursor: pointer;
+    vertical-align: super;
+    line-height: 1;
+}
+
+/* 选中文本评论弹窗 */
+.selection-comment-popover {
+    position: absolute;
+    width: 350px;
+    max-width: 90vw;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+    z-index: 1100;
+    padding: 0.75rem;
+    animation: fadeIn 0.2s ease;
+}
+
+.selection-comment-popover .popover-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.selection-comment-popover .popover-header .selected-text-preview {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-style: italic;
+    max-width: 250px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.selection-comment-popover .popover-header .popover-close-btn {
+    background: none;
+    border: none;
+    font-size: 1.1rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    padding: 0 0.25rem;
+    line-height: 1;
+}
+
+.selection-comment-popover .popover-header .popover-close-btn:hover {
+    color: var(--text-primary);
+}
