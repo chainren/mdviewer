@@ -92,3 +92,16 @@ Thumbs.db
 
 # Build output
 dist/
+
+# Bundle output
+mdviewer.js
+
+# Runtime data
+.mdviewer-data/
+
+# Claude Code / AI tools
+.claude/
+.playwright-mcp/
+
+# Logs
+server_output.log
