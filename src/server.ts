@@ -5,8 +5,36 @@ import * as chokidar from 'chokidar';
 import * as fs from 'fs';
 import * as net from 'net';
 import { buildFileTree, readMarkdownFile, extractOutline, isMarkdownFile, resolveWorkspacePath, getWorkspaceRootReal } from './fileUtils';
-import { FileChangeEvent } from './types';
+import { FileNode, FileChangeEvent } from './types';
 import * as crypto from 'crypto';
+
+// ==================== 文件树缓存 ====================
+
+interface FileTreeCache {
+  data: FileNode[];
+  lastModified: number;   // 缓存创建/更新时间戳
+  etag: string;           // 用于 HTTP 304 响应
+}
+
+let fileTreeCache: FileTreeCache | null = null;
+
+function clearFileTreeCache() {
+  fileTreeCache = null;
+}
+
+async function getFileTree(): Promise<FileTreeCache> {
+  if (!fileTreeCache) {
+    const currentDir = process.cwd();
+    const data = await buildFileTree(currentDir);
+    const lastModified = Date.now();
+    fileTreeCache = {
+      data,
+      lastModified,
+      etag: crypto.createHash('md5').update(JSON.stringify(data)).digest('hex'),
+    };
+  }
+  return fileTreeCache;
+}
 
 // ==================== 评论数据存储 ====================
 
@@ -164,11 +192,25 @@ function broadcastChange(event: FileChangeEvent) {
   });
 }
 
-app.get('/api/files', (req, res) => {
+app.get('/api/files', async (req, res) => {
   try {
-    const currentDir = process.cwd();
-    const fileTree = buildFileTree(currentDir);
-    res.json(fileTree);
+    const cache = await getFileTree();
+
+    // HTTP 缓存头
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Last-Modified', new Date(cache.lastModified).toUTCString());
+    res.setHeader('ETag', `"${cache.etag}"`);
+
+    // 检查条件请求，支持 304 Not Modified
+    const ifNoneMatch = req.headers['if-none-match'];
+    const ifModifiedSince = req.headers['if-modified-since'];
+    if (ifNoneMatch === `"${cache.etag}"` ||
+        (ifModifiedSince && new Date(ifModifiedSince).getTime() >= cache.lastModified)) {
+      res.status(304).end();
+      return;
+    }
+
+    res.json(cache.data);
   } catch (error) {
     console.error('Error getting files:', error);
     res.status(500).json({ error: 'Failed to get files' });
@@ -385,11 +427,30 @@ const watcher = chokidar.watch(process.cwd(), {
   ignoreInitial: true
 });
 
+// 文件/目录变更时清除文件树缓存
+watcher.on('add', (filePath) => {
+  if (isMarkdownFile(filePath)) {
+    clearFileTreeCache();
+    broadcastChange({ type: 'change', path: filePath });
+  }
+});
+
+watcher.on('unlink', (filePath) => {
+  if (isMarkdownFile(filePath)) {
+    clearFileTreeCache();
+    broadcastChange({ type: 'change', path: filePath });
+  }
+});
+
 watcher.on('change', (filePath) => {
   if (path.extname(filePath).match(/\.(md|markdown)$/i)) {
     broadcastChange({ type: 'change', path: filePath });
   }
 });
+
+// markdown 文件的添加/删除可能影响文件树结构，清除缓存
+watcher.on('addDir', clearFileTreeCache);
+watcher.on('unlinkDir', clearFileTreeCache);
 
 async function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {

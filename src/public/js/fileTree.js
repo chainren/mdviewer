@@ -595,9 +595,11 @@ class FileTree {
 
         const target = this.contentWrapper || this.container;
         target.innerHTML = '';
+        const fragment = document.createDocumentFragment();
         this.files.forEach(file => {
-            target.appendChild(this.createFileElement(file));
+            fragment.appendChild(this.createFileElement(file));
         });
+        target.appendChild(fragment);
 
         // 渲染后同步滑块
         this.syncSliderToScroll();

@@ -4,6 +4,16 @@ import { FileNode } from './types';
 
 const MARKDOWN_EXTENSIONS = ['.md', '.markdown', '.mdown', '.mkd', '.mkdn'];
 
+// 文件树扫描时跳过的目录，避免递归遍历大量无关文件
+const EXCLUDED_DIRS = new Set([
+  'node_modules',
+  '.git',
+  'dist',
+  'coverage',
+  'tmp',
+  '.mdviewer-data',
+]);
+
 export function isMarkdownFile(filePath: string): boolean {
   const ext = path.extname(filePath).toLowerCase();
   return MARKDOWN_EXTENSIONS.includes(ext);
@@ -50,18 +60,23 @@ export function resolveWorkspacePath(rawPath: string, options?: { allowCreate?: 
   }
 }
 
-export function buildFileTree(dirPath: string, basePath: string = dirPath): FileNode[] {
+export async function buildFileTree(dirPath: string, basePath: string = dirPath): Promise<FileNode[]> {
   const items: FileNode[] = [];
-  
+
   try {
-    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-    
+    const entries = await fs.promises.readdir(dirPath, { withFileTypes: true });
+
     for (const entry of entries) {
+      // 跳过无关目录，避免扫描 node_modules/.git 等海量文件
+      if (entry.isDirectory() && EXCLUDED_DIRS.has(entry.name)) {
+        continue;
+      }
+
       const fullPath = path.join(dirPath, entry.name);
       const relativePath = path.relative(basePath, fullPath);
-      
+
       if (entry.isDirectory()) {
-        const children = buildFileTree(fullPath, basePath);
+        const children = await buildFileTree(fullPath, basePath);
         if (children.length > 0) {
           items.push({
             name: entry.name,
@@ -82,7 +97,7 @@ export function buildFileTree(dirPath: string, basePath: string = dirPath): File
   } catch (error) {
     console.error(`Error reading directory ${dirPath}:`, error);
   }
-  
+
   return items.sort((a, b) => {
     if (a.type === b.type) {
       return a.name.localeCompare(b.name);
