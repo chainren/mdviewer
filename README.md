@@ -18,10 +18,11 @@
 - 🌐 **WebSocket 同步**：WS 端口 = HTTP 端口 + 5080，确保稳定连接
 
 ### 编辑能力
-- ✏️ **内置编辑器**：独立页面编辑，支持工具栏与快捷键（Cmd/Ctrl+S 保存等）
+- ✏️ **增强内置编辑器**：吸收 lengyi-markdown-editor 的常用写作工具，支持富工具栏、历史撤销/重做、查找替换与拖拽导入
 - 💾 **文件树式另存为**：弹窗内选择目标目录 + 输入文件名，支持新建子目录
 - 🔐 **并发冲突处理**：保存时带 lastModified，服务端检出冲突返回 409；支持"覆盖保存"
 - 📝 **实时预览**：编辑器内可切换预览模式，支持 Markdown/Mermaid 实时渲染
+- 📤 **多格式导出**：支持导出 Markdown、HTML、Word，并可调用浏览器打印为 PDF
 - 📄 **新建文件/目录**：右键菜单支持新建 Markdown 文件和文件夹
 
 ### 评论与批注
@@ -175,11 +176,15 @@ mdviewer/
 │       ├── editor.html    # 内置编辑器页面
 │       ├── css/
 │       │   ├── main.css
+│       │   ├── editor.css
 │       │   └── themes.css
 │       └── js/
 │           ├── app.js         # 前端主逻辑（文件树、导航、跳转到编辑器）
 │           ├── renderer.js    # Markdown 渲染逻辑（Mermaid/Prism）
 │           ├── fileTree.js    # 文件树组件
+│           ├── editorCommands.js # 可测试的 Markdown 编辑命令
+│           ├── editorHistory.js  # 编辑器撤销/重做历史管理
+│           ├── editorExport.js   # 编辑器导出 HTML/Word/Markdown 工具
 │           └── editor.js      # 编辑器页面逻辑（保存/另存为/覆盖保存/快捷键）
 ├── docs/
 │   ├── user-guide.md
@@ -292,13 +297,22 @@ mdviewer --dir ~/Documents/notes --port 8080
 ### 工具栏功能
 - **文件操作**：保存、另存为、返回预览
 - **预览控制**：实时预览开关（状态持久化）
-- **格式工具**：加粗、斜体、标题（H1–H6）
+- **格式工具**：加粗、斜体、下划线、删除线、行内代码、代码块、标题（H1–H6）
+- **结构工具**：引用、无序列表、有序列表、任务列表、8×8 表格选择器
+- **插入工具**：链接、图片 URL/本地图片 Base64、Mermaid 思维导图/流程图模板
+- **效率工具**：查找替换、撤销/重做历史、拖拽导入 Markdown 或图片
+- **导出工具**：导出 Markdown、HTML、Word，或使用浏览器打印为 PDF
 
 ### 快捷键
 - **Cmd/Ctrl+S**：保存当前文件
 - **Cmd/Ctrl+B**：加粗选中文本
 - **Cmd/Ctrl+I**：斜体选中文本
+- **Cmd/Ctrl+U**：下划线选中文本
+- **Cmd/Ctrl+K**：插入链接
+- **Cmd/Ctrl+F**：打开查找替换
+- **Cmd/Ctrl+Z / Cmd/Ctrl+Y**：撤销 / 重做
 - **Cmd/Ctrl+1–6**：插入标题 1–6 级
+- **Tab**：插入 4 空格缩进
 
 ### 另存为功能
 - **文件树选择**：弹窗内浏览目录结构

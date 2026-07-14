@@ -15,11 +15,15 @@ mdviewer/
 │       ├── editor.html    # 内置编辑器页面
 │       ├── css/
 │       │   ├── main.css
+│       │   ├── editor.css     # 编辑器增强样式、表格选择器与弹层
 │       │   └── themes.css
 │       └── js/
 │           ├── app.js         # 文件树、导航、编辑入口
 │           ├── renderer.js    # MarkdownRenderer（Mermaid/Prism 集成）
 │           ├── fileTree.js    # 文件树组件
+│           ├── editorCommands.js # 可测试的 Markdown 编辑命令
+│           ├── editorHistory.js  # 编辑器撤销/重做历史管理
+│           ├── editorExport.js   # 编辑器导出 HTML/Word/Markdown 工具
 │           └── editor.js      # 编辑器逻辑（保存/另存为/覆盖保存/快捷键）
 ├── docs/
 │   ├── user-guide.md
@@ -88,14 +92,19 @@ mdviewer/
 - 使用 `/api/files` 返回的树结构渲染，支持展开/收起
 - 另存为弹窗中复用渲染逻辑，仅允许选择目录
 
-### 内置编辑器（editor.js + editor.html）
+### 内置编辑器（editorCommands.js + editor.js + editor.html）
 
 - 加载逻辑：通过 `?file=` 拉取内容（`GET /api/file/:path`），右侧实时预览
 - 保存：`POST /api/file/:path`，入参 `{ content, lastModified }`
 - 并发冲突：服务端以 `stat.mtimeMs` 比较，冲突返回 409；前端弹窗“覆盖保存”后以 `{ override: true }` 重试
 - 另存为：弹窗文件树选择目录 + 输入文件名；成功后替换地址栏 `file` 参数继续编辑
-- 快捷键：Cmd/Ctrl+S/B/I 与 1..6 标题插入
+- 编辑命令：`editorCommands.js` 暴露 CommonJS 与浏览器全局 `MdEditorCommands`，测试脚本可直接覆盖格式化、插入和查找替换逻辑
+- 历史与导出：`editorHistory.js` 管理撤销/重做栈，`editorExport.js` 负责导出文件名、HTML/Word 包装与 Blob 下载
+- 工具栏：支持加粗/斜体/下划线/删除线、代码、引用、列表、任务列表、链接、图片、表格、Mermaid、查找替换和导出
+- 快捷键：Cmd/Ctrl+S/B/I/U/K/F/Z/Y 与 1..6 标题插入，Tab 插入 4 空格缩进
 - 预览开关：隐藏时不渲染，状态持久化到 localStorage
+- 导出：Markdown/HTML/Word 通过浏览器 Blob 下载，PDF 使用浏览器打印能力
+- 暂缓项：lengyi-markdown-editor 的网页转 Markdown、本地代理、多语言完整 i18n 与 PNG 长图导出未纳入首批集成
 
 ## 后端接口与安全
 

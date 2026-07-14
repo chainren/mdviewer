@@ -6,9 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Markdown Editor</title>
     <link rel="icon" type="image/svg+xml" href="icon.svg">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
+    <link rel="stylesheet" href="js/vendor/prism/1.29.0/themes/prism.min.css">
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/themes.css">
+    <link rel="stylesheet" href="css/editor.css">
     <style>
         /* 编辑器页面的最小增量样式，复用主站设计变量 */
         .editor-container { display: flex; height: 100vh; }
@@ -91,6 +92,10 @@
                     </div>
                     <button id="btn-bold" class="edit-btn" title="加粗 (Cmd/Ctrl+B)">B</button>
                     <button id="btn-italic" class="edit-btn" title="斜体 (Cmd/Ctrl+I)"><i>I</i></button>
+                    <button id="btn-underline" class="edit-btn" title="下划线 (Cmd/Ctrl+U)"><u>U</u></button>
+                    <button id="btn-strike" class="edit-btn" title="删除线"><s>S</s></button>
+                    <button id="btn-inline-code" class="edit-btn" title="行内代码">`code`</button>
+                    <button id="btn-code-block" class="edit-btn" title="代码块">{ }</button>
                     <div class="edit-btn-group">
                         <button id="btn-h1" class="edit-btn" title="标题1 (Cmd/Ctrl+1)">H1</button>
                         <button id="btn-h2" class="edit-btn" title="H2 (Cmd/Ctrl+2)">H2</button>
@@ -98,6 +103,30 @@
                         <button id="btn-h4" class="edit-btn" title="H4 (Cmd/Ctrl+4)">H4</button>
                         <button id="btn-h5" class="edit-btn" title="H5 (Cmd/Ctrl+5)">H5</button>
                         <button id="btn-h6" class="edit-btn" title="H6 (Cmd/Ctrl+6)">H6</button>
+                    </div>
+                    <div class="edit-btn-group">
+                        <button id="btn-quote" class="edit-btn" title="引用">❝</button>
+                        <button id="btn-ul" class="edit-btn" title="无序列表">• List</button>
+                        <button id="btn-ol" class="edit-btn" title="有序列表">1. List</button>
+                        <button id="btn-task" class="edit-btn" title="任务列表">☑ Task</button>
+                    </div>
+                    <button id="btn-link" class="edit-btn" title="插入链接 (Cmd/Ctrl+K)">🔗 链接</button>
+                    <button id="btn-image-url" class="edit-btn" title="插入图片链接">🖼 图片</button>
+                    <input id="image-file-input" class="hidden" type="file" accept="image/*">
+                    <div class="edit-btn-group table-picker-wrap">
+                        <button id="btn-table" class="edit-btn" title="插入表格">▦ 表格</button>
+                        <div id="table-popover" class="editor-popover">
+                            <div id="table-grid" class="table-grid"></div>
+                            <div id="table-size-label" class="table-size-label">选择表格大小</div>
+                        </div>
+                    </div>
+                    <button id="btn-mermaid" class="edit-btn" title="插入 Mermaid 图表">📊 Mermaid</button>
+                    <button id="btn-find" class="edit-btn" title="查找替换 (Cmd/Ctrl+F)">🔎 查找</button>
+                    <div class="edit-btn-group">
+                        <button id="btn-export-md" class="edit-btn" title="导出 Markdown">导出 MD</button>
+                        <button id="btn-export-html" class="edit-btn" title="导出 HTML">HTML</button>
+                        <button id="btn-export-word" class="edit-btn" title="导出 Word">Word</button>
+                        <button id="btn-export-pdf" class="edit-btn" title="打印为 PDF">PDF</button>
                     </div>
                     <button id="btn-toggle-preview" class="edit-btn" title="切换预览">🔁 预览开关</button>
                 </div>
@@ -117,12 +146,55 @@
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
-    <script src="https://cdn.bootcdn.net/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
-    <script src="https://cdn.bootcdn.net/ajax/libs/marked/9.1.6/marked.min.js"></script>
+    <div id="find-modal" class="modal-backdrop">
+        <div class="modal modal-sm">
+            <div class="modal-header">查找替换</div>
+            <div class="modal-body modal-body-column">
+                <label for="find-query">查找</label>
+                <input id="find-query" type="text" placeholder="输入要查找的内容">
+                <label for="find-replacement">替换为</label>
+                <input id="find-replacement" type="text" placeholder="输入替换内容">
+                <label class="checkbox-line"><input id="find-case" type="checkbox"> 区分大小写</label>
+            </div>
+            <div class="modal-footer">
+                <button id="find-close" class="edit-btn">关闭</button>
+                <button id="find-next" class="edit-btn">查找下一个</button>
+                <button id="replace-one" class="edit-btn">替换</button>
+                <button id="replace-all" class="edit-btn">全部替换</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="mermaid-modal" class="modal-backdrop">
+        <div class="modal modal-sm">
+            <div class="modal-header">插入 Mermaid 图表</div>
+            <div class="modal-body modal-body-column">
+                <label for="mermaid-type">图表类型</label>
+                <select id="mermaid-type">
+                    <option value="mindmap">思维导图</option>
+                    <option value="flowchart">流程图</option>
+                </select>
+                <label for="mermaid-code">Mermaid 源码</label>
+                <textarea id="mermaid-code" rows="10" placeholder="flowchart TD&#10;    A[开始] --> B[结束]"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button id="mermaid-cancel" class="edit-btn">取消</button>
+                <button id="mermaid-confirm" class="edit-btn">插入</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="drop-overlay" class="drop-overlay">拖放 Markdown 文件或图片到这里</div>
+
+    <script src="js/vendor/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="js/vendor/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="js/vendor/mermaid/10.6.1/mermaid.min.js"></script>
+    <script src="js/vendor/marked/9.1.6/marked.min.js"></script>
     <script src="js/renderer.js"></script>
     <script src="js/fileTree.js"></script>
+    <script src="js/editorCommands.js"></script>
+    <script src="js/editorHistory.js"></script>
+    <script src="js/editorExport.js"></script>
     <script src="js/editor.js"></script>
 </body>
 </html>

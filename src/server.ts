@@ -3,10 +3,10 @@ import * as path from 'path';
 import * as WebSocket from 'ws';
 import * as chokidar from 'chokidar';
 import * as fs from 'fs';
-import * as net from 'net';
 import { buildFileTree, readMarkdownFile, extractOutline, isMarkdownFile, resolveWorkspacePath, getWorkspaceRootReal } from './fileUtils';
 import { FileNode, FileChangeEvent } from './types';
 import * as crypto from 'crypto';
+import { findAvailableHttpPort, parsePortValue } from './portUtils';
 
 // ==================== 文件树缓存 ====================
 
@@ -128,7 +128,8 @@ if (dirArg) {
 
 const WORKSPACE_ROOT = getWorkspaceRootReal();
 const portArg = parseArg('port');
-const PORT = (portArg ? Number(portArg) : (process.env.PORT ? Number(process.env.PORT) : 3001)) || 3001;
+const WS_OFFSET = 5080;
+const PORT = parsePortValue(portArg, process.env.PORT, 3001, WS_OFFSET);
 
 app.use(express.json({ limit: '10mb' }));
 import { assets } from './embeddedAssets';
@@ -176,8 +177,6 @@ app.get('/editor.html', (req, res) => {
   res.send(a.content);
 });
 
-// 计算 WebSocket 端口：与 HTTP 端口保持固定偏移，方便客户端推导
-const WS_OFFSET = 5080;
 let wss: WebSocket.Server | null = null;
 
 function broadcastChange(event: FileChangeEvent) {
@@ -451,36 +450,6 @@ watcher.on('change', (filePath) => {
 // markdown 文件的添加/删除可能影响文件树结构，清除缓存
 watcher.on('addDir', clearFileTreeCache);
 watcher.on('unlinkDir', clearFileTreeCache);
-
-async function isPortAvailable(port: number): Promise<boolean> {
-  return new Promise((resolve) => {
-    const tester = net
-      .createServer()
-      .once('error', (err: any) => {
-        if (err && (err.code === 'EADDRINUSE' || err.code === 'EACCES')) {
-          resolve(false);
-        } else {
-          // 其他错误，认为不可用
-          resolve(false);
-        }
-      })
-      .once('listening', () => {
-        tester.close(() => resolve(true));
-      })
-      .listen(port, '0.0.0.0');
-  });
-}
-
-async function findAvailableHttpPort(startPort: number, wsOffset: number): Promise<number> {
-  let candidate = startPort;
-  // 需要同时保证 HTTP 端口与对应的 WebSocket 端口均可用
-  while (true) {
-    const httpOk = await isPortAvailable(candidate);
-    const wsOk = await isPortAvailable(candidate + wsOffset);
-    if (httpOk && wsOk) return candidate;
-    candidate += 1;
-  }
-}
 
 async function start() {
   // 加载评论数据

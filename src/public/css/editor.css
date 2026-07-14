@@ -1,0 +1,121 @@
+/* AIGC START */
+.editor-toolbar {
+    gap: 0.75rem;
+}
+
+.editor-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.editor-actions .edit-btn {
+    white-space: nowrap;
+}
+
+.editor-textarea {
+    line-height: 1.65;
+    resize: none;
+    tab-size: 4;
+}
+
+.table-picker-wrap {
+    position: relative;
+}
+
+.editor-popover {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    display: none;
+    width: 196px;
+    padding: 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+    z-index: 1001;
+}
+
+.editor-popover.show {
+    display: block;
+}
+
+.table-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 18px);
+    grid-auto-rows: 18px;
+    gap: 4px;
+}
+
+.table-grid-cell {
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    background: var(--bg-secondary);
+    cursor: pointer;
+}
+
+.table-grid-cell.active {
+    border-color: var(--accent-color, #007bff);
+    background: var(--hover-color, rgba(0, 123, 255, 0.12));
+}
+
+.table-size-label {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.modal-sm {
+    max-width: 560px;
+}
+
+.modal-body-column {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.modal-body-column input,
+.modal-body-column select,
+.modal-body-column textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font: inherit;
+}
+
+.modal-body-column textarea {
+    font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+}
+
+.checkbox-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-secondary);
+}
+
+.drop-overlay {
+    position: fixed;
+    inset: 16px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed var(--accent-color, #007bff);
+    border-radius: 14px;
+    background: rgba(0, 123, 255, 0.08);
+    color: var(--text-primary);
+    font-size: 1.25rem;
+    font-weight: 600;
+    z-index: 2000;
+    pointer-events: none;
+}
+
+.drop-overlay.show {
+    display: flex;
+}
+/* AIGC END */
