@@ -7,6 +7,7 @@ import { buildFileTree, readMarkdownFile, extractOutline, isMarkdownFile, resolv
 import { FileNode, FileChangeEvent } from './types';
 import * as crypto from 'crypto';
 import { findAvailableHttpPort, parsePortValue } from './portUtils';
+import { buildAssetTarget, parseImageDataUrl } from './assetUtils';
 
 // ==================== 文件树缓存 ====================
 
@@ -96,6 +97,7 @@ function saveComments() {
 }
 
 const app = express();
+const fsPromises = fs.promises;
 
 // CLI 参数解析：--dir /path/to/workspace，--port 4000
 function parseArg(name: string): string | undefined {
@@ -244,8 +246,6 @@ app.get('/api/file/:path(*)', (req, res) => {
 app.post('/api/file/:path(*)', async (req, res) => {
   try {
     const rawPath = req.params.path;
-    const fsPromises = require('fs').promises;
-
     // CSRF 基本同源校验
     const origin = req.headers.origin || '';
     const referer = req.headers.referer || '';
@@ -299,6 +299,47 @@ app.post('/api/file/:path(*)', async (req, res) => {
   } catch (error) {
     console.error('Error saving file:', error);
     res.status(500).json({ error: 'Failed to save file' });
+  }
+});
+
+app.post('/api/asset/:path(*)', async (req, res) => {
+  try {
+    const origin = req.headers.origin || '';
+    const referer = req.headers.referer || '';
+    const host = req.headers.host || '';
+    const sameOrigin = (origin.includes(host) || referer.includes(host));
+    if (!sameOrigin) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    const markdownPath = req.params.path;
+    const markdownFullPath = resolveWorkspacePath(markdownPath);
+    if (!isMarkdownFile(markdownFullPath)) {
+      return res.status(400).json({ error: 'Only markdown files can own assets' });
+    }
+
+    const filename = typeof req.body?.filename === 'string' ? req.body.filename : 'image';
+    const dataUrl = typeof req.body?.dataUrl === 'string' ? req.body.dataUrl : '';
+    const parsed = parseImageDataUrl(dataUrl, 5 * 1024 * 1024);
+    const target = buildAssetTarget(WORKSPACE_ROOT, markdownFullPath, filename, parsed.ext);
+
+    await fsPromises.mkdir(path.dirname(target.fullPath), { recursive: true });
+    await fsPromises.writeFile(target.fullPath, parsed.buffer);
+
+    return res.json({
+      success: true,
+      path: target.workspaceRelativePath,
+      relativePath: target.relativeMarkdownPath,
+      mime: parsed.mime,
+      size: parsed.buffer.length
+    });
+  } catch (error: any) {
+    console.error('Error saving asset:', error);
+    const message = error && error.message ? error.message : 'Failed to save asset';
+    if (/Invalid image data URL|Unsupported image type|Image is too large|Image data is empty/.test(message)) {
+      return res.status(400).json({ error: message });
+    }
+    res.status(500).json({ error: 'Failed to save asset' });
   }
 });
 

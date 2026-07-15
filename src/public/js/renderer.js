@@ -248,7 +248,17 @@ class MarkdownRenderer {
         this.outlineLineIndex = this.extractOutlineLineIndex(content || '');
         this.outlineLinePointer = 0;
         // AIGC END
-        return await marked.parse(content);
+        // AIGC START
+        let source = content || '';
+        let mathPlaceholders = [];
+        if (typeof MarkdownMath !== 'undefined') {
+            const protectedMath = MarkdownMath.protectMath(source);
+            source = protectedMath.text;
+            mathPlaceholders = protectedMath.placeholders;
+        }
+        const html = await marked.parse(source);
+        return typeof MarkdownMath !== 'undefined' ? MarkdownMath.restoreMath(html, mathPlaceholders) : html;
+        // AIGC END
     }
 
     async renderContent(content, options = {}) {
@@ -278,6 +288,11 @@ class MarkdownRenderer {
             container.appendChild(tempDiv);
 
             await this.renderMermaidDiagrams();
+            // AIGC START
+            if (typeof MarkdownMath !== 'undefined') {
+                MarkdownMath.renderMath(tempDiv);
+            }
+            // AIGC END
             Prism.highlightAllUnder(tempDiv);
             this.setupImageZoom(container);
         }

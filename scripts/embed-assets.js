@@ -18,6 +18,9 @@ const MIME = new Map([
   ['.gif', 'image/gif'],
   ['.webp', 'image/webp'],
   ['.ico', 'image/x-icon'],
+  ['.woff', 'font/woff'],
+  ['.woff2', 'font/woff2'],
+  ['.ttf', 'font/ttf'],
 ]);
 
 function walk(dir){

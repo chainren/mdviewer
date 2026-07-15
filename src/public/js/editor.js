@@ -654,22 +654,50 @@
         $('image-file-input').click();
     }
 
-    function insertImageFile(file) {
+    function readFileAsDataUrl(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (event) => resolve(event.target.result);
+            reader.onerror = () => reject(new Error('读取图片失败'));
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function uploadImageAsset(file) {
+        if (!currentFilePath) {
+            throw new Error('请先保存 Markdown 文件，再上传图片到 assets');
+        }
+        const dataUrl = await readFileAsDataUrl(file);
+        const res = await fetch(`/api/asset/${encodeURIComponent(currentFilePath)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: file.name, dataUrl })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+            throw new Error(data.error || `图片上传失败（${res.status}）`);
+        }
+        return data.relativePath;
+    }
+
+    async function insertImageFile(file) {
         if (!file || !file.type.startsWith('image/')) {
             setStatus('请选择图片文件');
             return;
         }
         if (file.size > 5 * 1024 * 1024) {
-            alert('图片超过 5MB，建议保存到 assets 目录后插入相对路径');
+            alert('图片超过 5MB，请压缩后再上传');
             return;
         }
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            runCommand(element => commands.insertImage(element, file.name, event.target.result));
-            setStatus('已插入图片');
-        };
-        reader.onerror = () => setStatus('读取图片失败');
-        reader.readAsDataURL(file);
+        try {
+            const relativePath = await uploadImageAsset(file);
+            runCommand(element => commands.insertImage(element, file.name, relativePath));
+            setStatus(`已上传图片：${relativePath}`);
+        } catch (error) {
+            console.error('图片上传失败', error);
+            alert(error.message || '图片上传失败');
+            setStatus('图片上传失败');
+        }
     }
 
     function exportMarkdown() {
@@ -802,7 +830,11 @@
         $('btn-task').addEventListener('click', () => runCommand(el => commands.prefixSelectedLines(el, '- [ ] ', '任务')));
         $('btn-link').addEventListener('click', insertLink);
         $('btn-image-url').addEventListener('click', insertImageByUrlOrFile);
-        $('image-file-input').addEventListener('change', event => insertImageFile(event.target.files[0]));
+        $('image-file-input').addEventListener('change', event => {
+            insertImageFile(event.target.files[0]).finally(() => {
+                event.target.value = '';
+            });
+        });
         $('btn-table').addEventListener('click', toggleTablePopover);
         $('btn-mermaid').addEventListener('click', openMermaidModal);
         $('btn-find').addEventListener('click', openFindModal);

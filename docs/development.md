@@ -100,7 +100,9 @@ mdviewer/
 - 另存为：弹窗文件树选择目录 + 输入文件名；成功后替换地址栏 `file` 参数继续编辑
 - 编辑命令：`editorCommands.js` 暴露 CommonJS 与浏览器全局 `MdEditorCommands`，测试脚本可直接覆盖格式化、插入和查找替换逻辑
 - 历史与导出：`editorHistory.js` 管理撤销/重做栈，`editorExport.js` 负责导出文件名、HTML/Word 包装与 Blob 下载
-- 工具栏：支持加粗/斜体/下划线/删除线、代码、引用、列表、任务列表、链接、图片、表格、Mermaid、查找替换和导出
+- 工具栏：支持加粗/斜体/下划线/删除线、代码、引用、列表、任务列表、链接、图片上传、表格、Mermaid、查找替换和导出
+- 图片资产：本地图片通过 `POST /api/asset/:path` 保存到 Markdown 同级 `assets/<文档名>/` 目录，正文插入相对路径
+- 数学公式：`markdownMath.js` 保护 `$...$` / `$$...$$`，`MarkdownRenderer` 渲染后统一调用 KaTeX auto-render
 - 快捷键：Cmd/Ctrl+S/B/I/U/K/F/Z/Y 与 1..6 标题插入，Tab 插入 4 空格缩进
 - 预览开关：隐藏时不渲染，状态持久化到 localStorage
 - 导出：Markdown/HTML/Word 通过浏览器 Blob 下载，PDF 使用浏览器打印能力
@@ -124,6 +126,12 @@ mdviewer/
 - 覆盖保存：`override === true` 时跳过并发比较，继续写入
 - 另存为：允许创建子目录（`mkdir recursive`），路径仍需在工作区内
 - JSON 体大小上限：10MB（`express.json({ limit: '10mb' })`）
+
+### POST `/api/asset/:path`
+- 请求体：`{ filename: string, dataUrl: string }`
+- 用途：为指定 Markdown 文件保存图片资产，并返回 `{ relativePath }` 供正文插入
+- 校验：同源校验、Markdown 归属文件校验、工作区路径约束、仅允许 PNG/JPEG/GIF/WebP，大小上限 5MB
+- 存储：保存到 Markdown 同级 `assets/<文档名>/<timestamp>-<safe-name>.<ext>`
 
 ## 路径与扩展校验（fileUtils.ts）
 
