@@ -15,7 +15,12 @@ function testToolbarEntrypoints() {
         'btn-layout-split',
         'btn-layout-preview',
         'split-resizer',
-        'btn-export-png'
+        'btn-export-png',
+        'btn-clear',
+        'btn-help',
+        'image-modal',
+        'export-image-modal',
+        'help-modal'
     ].forEach(id => {
         assertContains(html, new RegExp(`id="${id}"`), `缺少编辑器入口：${id}`);
     });
@@ -28,6 +33,10 @@ function testScriptWiring() {
     assertContains(editorJs, /exportPng/, '缺少 PNG 导出绑定');
     assertContains(editorJs, /applyLayoutMode/, '缺少布局模式绑定');
     assertContains(editorJs, /startSplitResize/, '缺少拖拽分栏绑定');
+    assertContains(editorJs, /openHelpModal/, '缺少帮助弹窗绑定');
+    assertContains(editorJs, /clearDocument/, '缺少清空文档绑定');
+    assertContains(editorJs, /handleEditorPaste/, '缺少粘贴图片处理');
+    assertContains(editorJs, /openExportImageModal/, '缺少 PNG 导出弹窗绑定');
 }
 
 testToolbarEntrypoints();

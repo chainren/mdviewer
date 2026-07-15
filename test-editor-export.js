@@ -32,9 +32,39 @@ function testBuildPngSvg() {
     assert.ok(svg.includes('<h1>标题</h1>'));
 }
 
+function testParsePngRatio() {
+    assert.strictEqual(editorExport.parsePngRatio('9:16'), 9 / 16);
+    assert.strictEqual(editorExport.parsePngRatio('1:1'), 1);
+    assert.strictEqual(editorExport.parsePngRatio('auto'), null);
+    assert.strictEqual(editorExport.parsePngRatio('bad'), null);
+}
+
+function testCalculatePngCanvasSize() {
+    assert.deepStrictEqual(editorExport.calculatePngCanvasSize(900, 2400, {
+        ratio: '9:16',
+        cropToRatio: false
+    }), { width: 900, height: 2400 });
+    assert.deepStrictEqual(editorExport.calculatePngCanvasSize(900, 2400, {
+        ratio: '9:16',
+        cropToRatio: true
+    }), { width: 900, height: 1600 });
+    assert.deepStrictEqual(editorExport.calculatePngCanvasSize(900, 300, {
+        ratio: '1:1',
+        cropToRatio: true
+    }), { width: 900, height: 900 });
+}
+
+function testDownloadHelpersAreAvailable() {
+    assert.strictEqual(typeof editorExport.downloadDataUrl, 'function');
+    assert.strictEqual(typeof editorExport.downloadBlob, 'function');
+}
+
 testBaseFilename();
 testStandaloneHtmlEscapesTitleAndKeepsBody();
 testWordHtml();
 testBuildPngSvg();
+testParsePngRatio();
+testCalculatePngCanvasSize();
+testDownloadHelpersAreAvailable();
 console.log('editor export tests passed');
 // AIGC END

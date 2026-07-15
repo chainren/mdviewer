@@ -73,12 +73,41 @@
             .join('\n');
     }
 
+    function parsePngRatio(ratio) {
+        const match = String(ratio || '').trim().match(/^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/);
+        if (!match) {
+            return null;
+        }
+        const width = Number(match[1]);
+        const height = Number(match[2]);
+        if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+            return null;
+        }
+        return width / height;
+    }
+
+    function calculatePngCanvasSize(contentWidth, contentHeight, options) {
+        const width = Math.max(1, Math.ceil(Number(contentWidth) || 1));
+        const height = Math.max(1, Math.ceil(Number(contentHeight) || 1));
+        const ratio = parsePngRatio(options && options.ratio);
+        if (!ratio || !(options && options.cropToRatio)) {
+            return { width, height };
+        }
+        return {
+            width,
+            height: Math.max(1, Math.ceil(width / ratio))
+        };
+    }
+
     function exportElementToPng(element, filename, options) {
         if (!element) {
             return Promise.reject(new Error('没有可导出的预览内容'));
         }
-        const width = Math.max(element.scrollWidth, element.clientWidth, 1);
-        const height = Math.max(element.scrollHeight, element.clientHeight, 1);
+        const contentWidth = Math.max(element.scrollWidth, element.clientWidth, 1);
+        const contentHeight = Math.max(element.scrollHeight, element.clientHeight, 1);
+        const size = calculatePngCanvasSize(contentWidth, contentHeight, options || {});
+        const width = size.width;
+        const height = size.height;
         const computed = typeof getComputedStyle === 'function' ? getComputedStyle(element) : null;
         if (typeof html2canvas === 'function') {
             return html2canvas(element, {
@@ -91,19 +120,12 @@
                 scrollY: 0,
                 useCORS: true,
                 scale: Math.min(window.devicePixelRatio || 1, 2)
-            }).then((canvas) => new Promise((resolve, reject) => {
-                canvas.toBlob((blob) => {
-                    if (!blob) {
-                        reject(new Error('PNG 生成失败'));
-                        return;
-                    }
-                    downloadBlob(blob, 'image/png', filename);
-                    resolve();
-                }, 'image/png');
-            }));
+            }).then((canvas) => {
+                downloadDataUrl(canvas.toDataURL('image/png'), filename);
+            });
         }
-        if (typeof domtoimage !== 'undefined' && domtoimage.toBlob) {
-            return domtoimage.toBlob(element, {
+        if (typeof domtoimage !== 'undefined' && domtoimage.toPng) {
+            return domtoimage.toPng(element, {
                 width,
                 height,
                 bgcolor: computed ? computed.backgroundColor : '#ffffff',
@@ -113,8 +135,8 @@
                     minHeight: `${height}px`,
                     overflow: 'visible'
                 }
-            }).then((blob) => {
-                downloadBlob(blob, 'image/png', filename);
+            }).then((dataUrl) => {
+                downloadDataUrl(dataUrl, filename);
             });
         }
         const clone = element.cloneNode(true);
@@ -157,16 +179,25 @@
         });
     }
 
-    function downloadBlob(content, mime, filename) {
-        const blob = new Blob([content], { type: mime });
-        const url = URL.createObjectURL(blob);
+    function triggerDownload(href, filename) {
         const link = document.createElement('a');
-        link.href = url;
+        link.href = href;
         link.download = filename;
+        link.rel = 'noopener';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+    }
+
+    function downloadDataUrl(dataUrl, filename) {
+        triggerDownload(dataUrl, filename);
+    }
+
+    function downloadBlob(content, mime, filename) {
+        const blob = content instanceof Blob ? content : new Blob([content], { type: mime });
+        const url = URL.createObjectURL(blob);
+        triggerDownload(url, filename);
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
     }
 
     return {
@@ -175,7 +206,10 @@
         buildStandaloneHtml,
         buildWordHtml,
         buildPngSvg,
+        parsePngRatio,
+        calculatePngCanvasSize,
         exportElementToPng,
+        downloadDataUrl,
         downloadBlob
     };
 });

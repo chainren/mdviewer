@@ -52,6 +52,12 @@
         .tree-item { cursor: pointer; padding:4px 6px; border-radius:4px; }
         .tree-item:hover { background: var(--bg-secondary); }
         .tree-item.selected { background: var(--bg-secondary); outline: 1px solid var(--border-color); }
+        .help-content { display:block; max-height: 60vh; overflow:auto; line-height:1.7; }
+        .help-content ul { margin: 0.25rem 0 0.75rem 1.25rem; }
+        .help-content code { background: var(--bg-secondary); padding: 1px 4px; border-radius: 4px; }
+        .export-option-row { display:flex; align-items:center; gap:8px; }
+        .export-option-row select { flex:1; }
+        .image-hint { font-size: 12px; color: var(--text-secondary); }
     </style>
 </head>
 <body>
@@ -141,6 +147,8 @@
                         <button id="btn-layout-preview" class="edit-btn layout-btn" title="仅预览">预览</button>
                         <button id="btn-fullscreen" class="edit-btn" title="全屏编辑器">⛶</button>
                     </div>
+                    <button id="btn-help" class="edit-btn" title="帮助与快捷键">❔ 帮助</button>
+                    <button id="btn-clear" class="edit-btn" title="清空当前编辑内容">🧹 清空</button>
                     <button id="btn-toggle-preview" class="edit-btn" title="切换预览">🔁 预览开关</button>
                 </div>
             </div>
@@ -194,6 +202,78 @@
             <div class="modal-footer">
                 <button id="mermaid-cancel" class="edit-btn">取消</button>
                 <button id="mermaid-confirm" class="edit-btn">插入</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="image-modal" class="modal-backdrop">
+        <div class="modal modal-sm">
+            <div class="modal-header">插入图片</div>
+            <div class="modal-body modal-body-column">
+                <label for="image-url-input">图片 URL</label>
+                <input id="image-url-input" type="url" placeholder="https://example.com/image.png">
+                <div class="image-hint">填写 URL 后会直接插入 Markdown 图片链接。</div>
+                <label for="image-local-file">或选择本地图片</label>
+                <input id="image-local-file" type="file" accept="image/*">
+                <div class="image-hint">本地图片会上传到当前 Markdown 文件旁的 assets 目录；也支持直接粘贴图片。</div>
+            </div>
+            <div class="modal-footer">
+                <button id="image-cancel" class="edit-btn">取消</button>
+                <button id="image-confirm" class="edit-btn">插入</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="export-image-modal" class="modal-backdrop">
+        <div class="modal modal-sm">
+            <div class="modal-header">导出 PNG 长图</div>
+            <div class="modal-body modal-body-column">
+                <label for="export-image-ratio">图片比例</label>
+                <div class="export-option-row">
+                    <select id="export-image-ratio">
+                        <option value="auto">自动长图</option>
+                        <option value="9:16">9:16 竖图</option>
+                        <option value="4:5">4:5 社媒图</option>
+                        <option value="3:4">3:4 竖图</option>
+                        <option value="1:1">1:1 方图</option>
+                        <option value="16:9">16:9 横图</option>
+                    </select>
+                </div>
+                <label class="checkbox-line"><input id="export-image-crop" type="checkbox"> 按固定比例裁剪/补齐高度</label>
+                <div class="image-hint">默认导出完整内容长图；勾选后按选择比例控制画布高度。</div>
+            </div>
+            <div class="modal-footer">
+                <button id="export-image-cancel" class="edit-btn">取消</button>
+                <button id="export-image-confirm" class="edit-btn">下载 PNG</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="help-modal" class="modal-backdrop">
+        <div class="modal">
+            <div class="modal-header">Markdown 编辑器帮助</div>
+            <div class="modal-body help-content">
+                <p><b>开始写作</b></p>
+                <ul>
+                    <li>左侧编辑 Markdown，右侧实时预览并支持 Mermaid、KaTeX、代码高亮。</li>
+                    <li>工具栏可快速插入标题、列表、引用、代码、链接、图片、表格和 Mermaid。</li>
+                    <li>本地图片会上传到当前文档同目录的 <code>assets</code> 子目录。</li>
+                </ul>
+                <p><b>视图与导出</b></p>
+                <ul>
+                    <li>使用「编辑 / 双栏 / 预览」切换布局，拖拽中间分隔线调整宽度。</li>
+                    <li>支持导出 Markdown、HTML、Word、PDF 和 PNG 长图。</li>
+                </ul>
+                <p><b>常用快捷键</b></p>
+                <ul>
+                    <li><code>Ctrl/Cmd+S</code> 保存，<code>Ctrl/Cmd+Z</code> 撤销，<code>Ctrl/Cmd+Y</code> 重做。</li>
+                    <li><code>Ctrl/Cmd+B/I/U</code> 加粗、斜体、下划线。</li>
+                    <li><code>Ctrl/Cmd+K</code> 插入链接，<code>Ctrl/Cmd+Shift+K</code> 插入图片。</li>
+                    <li><code>Ctrl/Cmd+F</code> 查找，<code>Ctrl/Cmd+H</code> 打开替换。</li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button id="help-close" class="edit-btn">知道了</button>
             </div>
         </div>
     </div>

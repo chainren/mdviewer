@@ -580,6 +580,25 @@
         setStatus(container.classList.contains('editor-fullscreen') ? '已进入全屏编辑' : '已退出全屏编辑');
     }
 
+    function openHelpModal() {
+        $('help-modal').style.display = 'flex';
+    }
+
+    function closeHelpModal() {
+        $('help-modal').style.display = 'none';
+    }
+
+    function clearDocument() {
+        if (textarea().value && !confirm('确定清空当前编辑内容吗？此操作不会自动保存。')) {
+            return;
+        }
+        pushHistory();
+        textarea().value = '';
+        textarea().selectionStart = textarea().selectionEnd = 0;
+        markChanged(false);
+        setStatus('已清空当前内容');
+    }
+
     function goBack() {
         const previewUrl = originUrl || (`/index.html?file=${encodeURIComponent(currentFilePath || '')}`);
         if (unsaved && !confirm('存在未保存的更改，确定要返回吗？')) {
@@ -591,6 +610,11 @@
     function openFindModal() {
         $('find-modal').style.display = 'flex';
         $('find-query').focus();
+    }
+
+    function openReplaceModal() {
+        $('find-modal').style.display = 'flex';
+        $('find-replacement').focus();
     }
 
     function closeFindModal() {
@@ -732,12 +756,36 @@
     }
 
     function insertImageByUrlOrFile() {
-        const url = prompt('请输入图片 URL；留空则选择本地图片', '');
+        openImageModal();
+    }
+
+    function openImageModal() {
+        $('image-url-input').value = '';
+        $('image-local-file').value = '';
+        $('image-modal').style.display = 'flex';
+        $('image-url-input').focus();
+    }
+
+    function closeImageModal() {
+        $('image-modal').style.display = 'none';
+    }
+
+    async function confirmImageInsert() {
+        const url = $('image-url-input').value.trim();
+        const file = $('image-local-file').files[0];
         if (url) {
             runCommand(element => commands.insertImage(element, '图片', url));
+            closeImageModal();
             return;
         }
-        $('image-file-input').click();
+        if (file) {
+            const inserted = await insertImageFile(file);
+            if (inserted) {
+                closeImageModal();
+            }
+            return;
+        }
+        setStatus('请输入图片 URL 或选择本地图片');
     }
 
     function readFileAsDataUrl(file) {
@@ -769,21 +817,37 @@
     async function insertImageFile(file) {
         if (!file || !file.type.startsWith('image/')) {
             setStatus('请选择图片文件');
-            return;
+            return false;
         }
         if (file.size > 5 * 1024 * 1024) {
             alert('图片超过 5MB，请压缩后再上传');
-            return;
+            return false;
         }
         try {
             const relativePath = await uploadImageAsset(file);
             runCommand(element => commands.insertImage(element, file.name, relativePath));
             setStatus(`已上传图片：${relativePath}`);
+            return true;
         } catch (error) {
             console.error('图片上传失败', error);
             alert(error.message || '图片上传失败');
             setStatus('图片上传失败');
+            return false;
         }
+    }
+
+    function handleEditorPaste(event) {
+        const items = Array.from((event.clipboardData && event.clipboardData.items) || []);
+        const imageItem = items.find(item => item.kind === 'file' && item.type.startsWith('image/'));
+        if (!imageItem) {
+            return;
+        }
+        const file = imageItem.getAsFile();
+        if (!file) {
+            return;
+        }
+        event.preventDefault();
+        insertImageFile(file);
     }
 
     function exportMarkdown() {
@@ -810,17 +874,39 @@
         window.print();
     }
 
-    async function exportPng() {
+    function openExportImageModal() {
+        $('export-image-ratio').value = 'auto';
+        $('export-image-crop').checked = false;
+        $('export-image-modal').style.display = 'flex';
+    }
+
+    function closeExportImageModal() {
+        $('export-image-modal').style.display = 'none';
+    }
+
+    function getExportImageOptions() {
+        return {
+            ratio: $('export-image-ratio').value,
+            cropToRatio: $('export-image-crop').checked
+        };
+    }
+
+    async function exportPng(options = {}) {
         try {
             setStatus('正在生成 PNG 长图...');
             await renderPreview({ force: true });
-            await exportTools.exportElementToPng($('preview-body'), exportTools.baseFilename(currentFilePath, 'png'));
+            await exportTools.exportElementToPng($('preview-body'), exportTools.baseFilename(currentFilePath, 'png'), options);
+            closeExportImageModal();
             setStatus('PNG 长图已导出');
         } catch (error) {
             console.error('PNG 导出失败', error);
             alert(error.message || 'PNG 导出失败');
             setStatus('PNG 导出失败');
         }
+    }
+
+    function confirmExportImage() {
+        exportPng(getExportImageOptions());
     }
 
     function showDropOverlay() {
@@ -875,12 +961,18 @@
             } else if ((event.metaKey || event.ctrlKey) && key === 'u') {
                 event.preventDefault();
                 runCommand(element => commands.wrapSelection(element, '<u>', '</u>', '文本'));
+            } else if ((event.metaKey || event.ctrlKey) && event.shiftKey && key === 'k') {
+                event.preventDefault();
+                openImageModal();
             } else if ((event.metaKey || event.ctrlKey) && key === 'k') {
                 event.preventDefault();
                 insertLink();
             } else if ((event.metaKey || event.ctrlKey) && key === 'f') {
                 event.preventDefault();
                 openFindModal();
+            } else if ((event.metaKey || event.ctrlKey) && key === 'h') {
+                event.preventDefault();
+                openReplaceModal();
             } else if ((event.metaKey || event.ctrlKey) && /^[1-6]$/.test(key)) {
                 event.preventDefault();
                 runCommand(element => commands.setHeading(element, parseInt(key, 10)));
@@ -908,11 +1000,14 @@
             }
         });
         element.addEventListener('scroll', syncPreviewToScroll);
+        element.addEventListener('paste', handleEditorPaste);
 
         $('btn-save').addEventListener('click', () => saveFile());
         $('btn-save-as').addEventListener('click', openSaveAsModal);
         $('btn-back').addEventListener('click', goBack);
         $('btn-toggle-preview').addEventListener('click', togglePreview);
+        $('btn-help').addEventListener('click', openHelpModal);
+        $('btn-clear').addEventListener('click', clearDocument);
 
         $('btn-bold').addEventListener('click', () => runCommand(el => commands.wrapSelection(el, '**', '**', '文本')));
         $('btn-italic').addEventListener('click', () => runCommand(el => commands.wrapSelection(el, '*', '*', '文本')));
@@ -940,7 +1035,7 @@
         $('btn-export-md').addEventListener('click', exportMarkdown);
         $('btn-export-html').addEventListener('click', exportHtml);
         $('btn-export-word').addEventListener('click', exportWord);
-        $('btn-export-png').addEventListener('click', exportPng);
+        $('btn-export-png').addEventListener('click', openExportImageModal);
         $('btn-export-pdf').addEventListener('click', exportPdf);
         $('btn-layout-edit').addEventListener('click', () => applyLayoutMode('edit'));
         $('btn-layout-split').addEventListener('click', () => applyLayoutMode('split'));
@@ -967,6 +1062,17 @@
         $('mermaid-type').addEventListener('change', updateMermaidTemplate);
         $('mermaid-cancel').addEventListener('click', closeMermaidModal);
         $('mermaid-confirm').addEventListener('click', confirmMermaidInsert);
+
+        $('image-cancel').addEventListener('click', closeImageModal);
+        $('image-confirm').addEventListener('click', confirmImageInsert);
+        $('image-url-input').addEventListener('keydown', event => {
+            if (event.key === 'Enter') {
+                confirmImageInsert();
+            }
+        });
+        $('export-image-cancel').addEventListener('click', closeExportImageModal);
+        $('export-image-confirm').addEventListener('click', confirmExportImage);
+        $('help-close').addEventListener('click', closeHelpModal);
 
         document.addEventListener('click', (event) => {
             if (!$('table-popover').contains(event.target) && event.target !== $('btn-table')) {
