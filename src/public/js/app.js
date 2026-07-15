@@ -1697,11 +1697,15 @@ class MarkdownViewerApp {
 
         const author = document.createElement('span');
         author.className = 'comment-author';
-        author.textContent = comment.ip || comment.author || 'Anonymous';
+        // AIGC START
+        author.textContent = comment.author || comment.ip || 'Anonymous';
+        // AIGC END
 
         const time = document.createElement('span');
         time.className = 'comment-time';
-        time.textContent = this.formatCommentTime(comment.time);
+        // AIGC START
+        time.textContent = this.formatCommentTime(comment.commentTime || comment.time);
+        // AIGC END
 
         header.appendChild(author);
         header.appendChild(time);

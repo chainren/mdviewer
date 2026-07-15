@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as WebSocket from 'ws';
 import * as chokidar from 'chokidar';
 import * as fs from 'fs';
+import * as os from 'os';
 import { buildFileTree, readMarkdownFile, extractOutline, isMarkdownFile, resolveWorkspacePath, getWorkspaceRootReal } from './fileUtils';
 import { FileNode, FileChangeEvent } from './types';
 import * as crypto from 'crypto';
@@ -48,6 +49,7 @@ interface Comment {
   ip: string;
   content: string;
   time: string;
+  commentTime: string;
   elementId: string;
   parentId?: string;
   selectedText?: string;
@@ -60,6 +62,33 @@ interface CommentsStore {
     [elementId: string]: Comment[];
   };
 }
+
+// AIGC START
+function getLocalCommentAuthor(): string {
+  let osUsername: string | undefined;
+
+  try {
+    osUsername = os.userInfo().username;
+  } catch (error) {
+    osUsername = undefined;
+  }
+
+  const candidates = [
+    osUsername,
+    process.env.USER,
+    process.env.USERNAME,
+    process.env.LOGNAME,
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  return 'Anonymous';
+}
+// AIGC END
 
 let commentsStore: CommentsStore = {};
 
@@ -379,7 +408,9 @@ app.post('/api/comments/:path(*)', (req, res) => {
       return res.status(400).json({ error: '缺少必要参数' });
     }
 
-    const trimmedAuthor = author ? String(author).trim() : 'Anonymous';
+    // AIGC START
+    const trimmedAuthor = author ? String(author).trim() : getLocalCommentAuthor();
+    // AIGC END
     const trimmedContent = String(content).trim();
     // 获取 IP 地址
     const ip = (req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown';
@@ -407,12 +438,17 @@ app.post('/api/comments/:path(*)', (req, res) => {
       commentId = Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
     }
 
+    const commentTime = new Date().toISOString();
+
     const comment: Comment = {
       id: commentId,
       author: trimmedAuthor,
       ip: ip,
       content: trimmedContent,
-      time: new Date().toISOString(),
+      // AIGC START
+      time: commentTime,
+      commentTime: commentTime,
+      // AIGC END
       elementId: elementId,
       parentId: validParentId,
       ...(selectedText ? { selectedText: String(selectedText) } : {}),
