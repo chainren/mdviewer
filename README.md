@@ -110,9 +110,25 @@ mdviewer --dir /path/to/markdowns
 # 指定端口
 mdviewer --port 4000
 
+# 查看版本
+mdviewer --version
+
 # 组合使用
 mdviewer --dir ~/Documents/notes --port 8080
 ```
+
+### 版本发布
+
+当前第一个正式版本为 `1.0.0`。后续版本遵循 SemVer：修复递增 PATCH，兼容功能递增 MINOR，不兼容变更递增 MAJOR。
+
+```bash
+npm run version:patch      # 1.0.0 -> 1.0.1
+npm run version:minor      # 1.0.0 -> 1.1.0
+npm run version:major      # 1.0.0 -> 2.0.0
+npm run version:set -- 1.2.3
+```
+
+版本发布规则详见 `docs/VERSIONING.md`。
 
 ### 访问应用
 

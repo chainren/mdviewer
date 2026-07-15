@@ -9,6 +9,7 @@ import { FileNode, FileChangeEvent } from './types';
 import * as crypto from 'crypto';
 import { findAvailableHttpPort, parsePortValue } from './portUtils';
 import { buildAssetTarget, parseImageDataUrl } from './assetUtils';
+import { getVersionText, hasVersionFlag } from './version';
 
 // ==================== 文件树缓存 ====================
 
@@ -142,6 +143,13 @@ function parseArg(name: string): string | undefined {
   }
   return undefined;
 }
+
+// AIGC START
+if (hasVersionFlag(process.argv.slice(2))) {
+  console.log(getVersionText());
+  process.exit(0);
+}
+// AIGC END
 
 const dirArg = parseArg('dir');
 if (dirArg) {
