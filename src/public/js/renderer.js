@@ -180,10 +180,15 @@ class MarkdownRenderer {
         };
 
         renderer.link = (href, title, text) => {
-            const isExternal = href.startsWith('http') && !href.includes(window.location.host);
+            // AIGC START
+            const resolvedHref = typeof MarkdownLinkUtils !== 'undefined' && MarkdownLinkUtils.resolveDocumentHref
+                ? MarkdownLinkUtils.resolveDocumentHref(href, this.currentBasePath)
+                : href;
+            const isExternal = /^https?:\/\//i.test(href) && !href.includes(window.location.host);
             const targetAttr = isExternal ? ' target="_blank" rel="noopener noreferrer"' : '';
             const titleAttr = title ? ` title="${title}"` : '';
-            return `<a href="${href}"${titleAttr}${targetAttr}>${text}</a>`;
+            return `<a href="${resolvedHref}"${titleAttr}${targetAttr}>${text}</a>`;
+            // AIGC END
         };
 
         marked.use({ renderer });
