@@ -7,6 +7,7 @@
     const commands = window.MdEditorCommands;
     const historyManager = window.MdEditorHistory.createHistoryManager(100);
     const exportTools = window.MdEditorExport;
+    const layoutTools = window.MdEditorLayout;
 
     let renderer;
     let renderDebounce;
@@ -18,6 +19,9 @@
     let lastActiveHeadingElement = null;
     let currentFindQuery = '';
     let dragCounter = 0;
+    let currentLayoutMode = 'split';
+    let splitPercent = 50;
+    let isResizingSplit = false;
 
     const renderDelay = 250;
     const ACTIVE_HEADING_CLASS = 'active-preview-heading';
@@ -89,13 +93,12 @@
 
     function isPreviewHidden() {
         const pane = $('preview-pane');
-        return !pane || pane.classList.contains('hidden');
+        return !pane || pane.classList.contains('hidden') || pane.classList.contains('layout-hidden');
     }
 
     async function renderPreview(options = {}) {
         try {
-            const pane = $('preview-pane');
-            if (pane && pane.classList.contains('hidden') && !options.force) {
+            if (isPreviewHidden() && !options.force) {
                 return;
             }
             const outline = await renderer.renderContent(textarea().value, {
@@ -478,20 +481,103 @@
     }
 
     function togglePreview() {
-        const pane = $('preview-pane');
-        if (!pane) {
-            return;
+        applyLayoutMode(currentLayoutMode === 'edit' ? 'split' : 'edit');
+    }
+
+    function updateLayoutButtons(mode) {
+        ['edit', 'split', 'preview'].forEach((name) => {
+            const button = $(`btn-layout-${name}`);
+            if (button) {
+                button.classList.toggle('active', name === mode);
+            }
+        });
+    }
+
+    function applyLayoutMode(mode, options = {}) {
+        const state = layoutTools.buildLayoutState(mode, splitPercent);
+        const editorPane = $('editor-pane');
+        const previewPane = $('preview-pane');
+        const resizer = $('split-resizer');
+        currentLayoutMode = state.mode;
+        if (editorPane) {
+            editorPane.classList.toggle('layout-hidden', state.editorHidden);
+            editorPane.style.flexBasis = state.editorBasis;
+            editorPane.style.flexGrow = '0';
         }
-        pane.classList.toggle('hidden');
-        const hidden = pane.classList.contains('hidden');
-        try {
-            localStorage.setItem('editor-preview-hidden', hidden ? '1' : '0');
-        } catch (err) {}
-        if (hidden) {
+        if (previewPane) {
+            previewPane.classList.remove('hidden');
+            previewPane.classList.toggle('layout-hidden', state.previewHidden);
+            previewPane.style.flexBasis = state.previewBasis;
+            previewPane.style.flexGrow = '0';
+        }
+        if (resizer) {
+            resizer.classList.toggle('layout-hidden', state.resizerHidden);
+        }
+        updateLayoutButtons(state.mode);
+        if (options.persist !== false) {
+            try {
+                localStorage.setItem('editor-layout-mode', state.mode);
+                localStorage.setItem('editor-split-percent', String(splitPercent));
+                localStorage.removeItem('editor-preview-hidden');
+            } catch (err) {}
+        }
+        if (state.previewHidden) {
             highlightHeading(null);
-        } else {
+        } else if (options.render !== false) {
             scheduleRender({ force: true });
         }
+    }
+
+    function getResizePoint(event) {
+        const source = event.touches ? event.touches[0] : event;
+        const main = $('editor-main');
+        const rect = main.getBoundingClientRect();
+        const vertical = window.matchMedia('(max-width: 768px)').matches;
+        const raw = vertical ? ((source.clientY - rect.top) / rect.height) : ((source.clientX - rect.left) / rect.width);
+        return layoutTools.clampSplitPercent(raw * 100);
+    }
+
+    function updateSplitResize(event) {
+        if (!isResizingSplit) {
+            return;
+        }
+        event.preventDefault();
+        splitPercent = getResizePoint(event);
+        applyLayoutMode('split');
+    }
+
+    function stopSplitResize() {
+        if (!isResizingSplit) {
+            return;
+        }
+        isResizingSplit = false;
+        $('split-resizer').classList.remove('dragging');
+        document.removeEventListener('mousemove', updateSplitResize);
+        document.removeEventListener('mouseup', stopSplitResize);
+        document.removeEventListener('touchmove', updateSplitResize);
+        document.removeEventListener('touchend', stopSplitResize);
+    }
+
+    function startSplitResize(event) {
+        if (currentLayoutMode !== 'split') {
+            applyLayoutMode('split');
+        }
+        event.preventDefault();
+        isResizingSplit = true;
+        $('split-resizer').classList.add('dragging');
+        document.addEventListener('mousemove', updateSplitResize);
+        document.addEventListener('mouseup', stopSplitResize);
+        document.addEventListener('touchmove', updateSplitResize, { passive: false });
+        document.addEventListener('touchend', stopSplitResize);
+    }
+
+    function toggleFullscreen() {
+        const container = document.querySelector('.editor-container');
+        if (!container) {
+            return;
+        }
+        container.classList.toggle('editor-fullscreen');
+        setStatus(container.classList.contains('editor-fullscreen') ? '已进入全屏编辑' : '已退出全屏编辑');
     }
 
     function goBack() {
@@ -724,6 +810,19 @@
         window.print();
     }
 
+    async function exportPng() {
+        try {
+            setStatus('正在生成 PNG 长图...');
+            await renderPreview({ force: true });
+            await exportTools.exportElementToPng($('preview-body'), exportTools.baseFilename(currentFilePath, 'png'));
+            setStatus('PNG 长图已导出');
+        } catch (error) {
+            console.error('PNG 导出失败', error);
+            alert(error.message || 'PNG 导出失败');
+            setStatus('PNG 导出失败');
+        }
+    }
+
     function showDropOverlay() {
         $('drop-overlay').classList.add('show');
     }
@@ -841,7 +940,14 @@
         $('btn-export-md').addEventListener('click', exportMarkdown);
         $('btn-export-html').addEventListener('click', exportHtml);
         $('btn-export-word').addEventListener('click', exportWord);
+        $('btn-export-png').addEventListener('click', exportPng);
         $('btn-export-pdf').addEventListener('click', exportPdf);
+        $('btn-layout-edit').addEventListener('click', () => applyLayoutMode('edit'));
+        $('btn-layout-split').addEventListener('click', () => applyLayoutMode('split'));
+        $('btn-layout-preview').addEventListener('click', () => applyLayoutMode('preview'));
+        $('btn-fullscreen').addEventListener('click', toggleFullscreen);
+        $('split-resizer').addEventListener('mousedown', startSplitResize);
+        $('split-resizer').addEventListener('touchstart', startSplitResize, { passive: false });
 
         $('saveas-cancel').addEventListener('click', closeSaveAsModal);
         $('saveas-confirm').addEventListener('click', confirmSaveAs);
@@ -901,12 +1007,11 @@
     function init() {
         applyThemeFromViewer();
         renderer = new MarkdownRenderer();
-        if (localStorage.getItem('editor-preview-hidden') === '1') {
-            $('preview-pane').classList.add('hidden');
-        }
+        splitPercent = layoutTools.clampSplitPercent(localStorage.getItem('editor-split-percent'));
         initTableGrid();
         bindShortcuts();
         bindUI();
+        applyLayoutMode(localStorage.getItem('editor-layout-mode') || (localStorage.getItem('editor-preview-hidden') === '1' ? 'edit' : 'split'), { persist: false, render: false });
         loadFile();
     }
 

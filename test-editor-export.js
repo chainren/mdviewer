@@ -19,8 +19,22 @@ function testWordHtml() {
     assert.ok(html.includes('<p>正文</p>'));
 }
 
+function testBuildPngSvg() {
+    const svg = editorExport.buildPngSvg('<h1>标题</h1>', {
+        width: 320,
+        height: 240,
+        background: '#ffffff'
+    });
+    assert.ok(svg.includes('<svg'));
+    assert.ok(svg.includes('width="320"'));
+    assert.ok(svg.includes('height="240"'));
+    assert.ok(svg.includes('<foreignObject'));
+    assert.ok(svg.includes('<h1>标题</h1>'));
+}
+
 testBaseFilename();
 testStandaloneHtmlEscapesTitleAndKeepsBody();
 testWordHtml();
+testBuildPngSvg();
 console.log('editor export tests passed');
 // AIGC END

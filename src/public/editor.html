@@ -20,9 +20,14 @@
         .editor-main { flex:1; display:flex; min-height:0; }
         .editor-pane { flex:1; display:flex; flex-direction:column; min-height:0; }
         .editor-pane.left { border-right: 1px solid var(--border-color); min-height:0; }
+        .editor-pane.layout-hidden, .preview-pane.layout-hidden, .split-resizer.layout-hidden { display:none; }
         .editor-textarea { flex:1; width:100%; padding:1rem; border:none; outline:none; font-family: Menlo, Monaco, Consolas, "Courier New", monospace; font-size:14px; background: var(--bg-primary); color: var(--text-primary); min-height:0; overflow:auto; }
         .preview-pane { flex:1; display:flex; flex-direction:column; min-height:0; }
         .preview-body { flex:1; overflow-y:auto; padding:1rem; background: var(--bg-primary); min-height:0; }
+        .split-resizer { width: 8px; flex: 0 0 8px; cursor: col-resize; background: var(--bg-secondary); border-left: 1px solid var(--border-color); border-right: 1px solid var(--border-color); }
+        .split-resizer:hover, .split-resizer.dragging { background: var(--hover-color, rgba(0, 123, 255, 0.12)); }
+        .layout-btn.active { background: var(--accent-color, #007bff); color: #fff; border-color: var(--accent-color, #007bff); }
+        .editor-fullscreen { position: fixed; inset: 0; z-index: 3000; background: var(--bg-primary); }
         .preview-body .active-preview-heading {
             background: var(--hover-color, rgba(0, 123, 255, 0.12));
             box-shadow: inset 3px 0 0 var(--accent-color, #007bff);
@@ -33,7 +38,7 @@
         .status-bar { padding:0.25rem 1rem; font-size:0.875rem; color: var(--text-secondary); border-top:1px solid var(--border-color); background: var(--bg-secondary); }
         .split-title { padding:0.5rem 1rem; border-bottom:1px solid var(--border-color); font-size:0.875rem; color: var(--text-secondary); background: var(--bg-secondary); }
         .hidden { display:none; }
-        @media (max-width: 768px) { .editor-main { flex-direction: column; } .editor-pane.left { border-right:none; border-bottom: 1px solid var(--border-color); } }
+        @media (max-width: 768px) { .editor-main { flex-direction: column; } .editor-pane.left { border-right:none; border-bottom: 1px solid var(--border-color); } .split-resizer { width:auto; height:8px; flex-basis:8px; cursor: row-resize; } }
 
         /* Save As 弹窗 */
         .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display:none; align-items:center; justify-content:center; z-index: 1000; }
@@ -127,17 +132,25 @@
                         <button id="btn-export-md" class="edit-btn" title="导出 Markdown">导出 MD</button>
                         <button id="btn-export-html" class="edit-btn" title="导出 HTML">HTML</button>
                         <button id="btn-export-word" class="edit-btn" title="导出 Word">Word</button>
+                        <button id="btn-export-png" class="edit-btn" title="导出预览长图 PNG">PNG</button>
                         <button id="btn-export-pdf" class="edit-btn" title="打印为 PDF">PDF</button>
+                    </div>
+                    <div class="edit-btn-group">
+                        <button id="btn-layout-edit" class="edit-btn layout-btn" title="仅编辑">编辑</button>
+                        <button id="btn-layout-split" class="edit-btn layout-btn" title="双栏编辑预览">双栏</button>
+                        <button id="btn-layout-preview" class="edit-btn layout-btn" title="仅预览">预览</button>
+                        <button id="btn-fullscreen" class="edit-btn" title="全屏编辑器">⛶</button>
                     </div>
                     <button id="btn-toggle-preview" class="edit-btn" title="切换预览">🔁 预览开关</button>
                 </div>
             </div>
-            <div class="editor-main">
-                <div class="editor-pane left">
+            <div class="editor-main" id="editor-main">
+                <div class="editor-pane left" id="editor-pane">
                     <div class="split-title">编辑区</div>
                     <textarea id="editor-textarea" class="editor-textarea" placeholder="在此输入 Markdown 内容..."></textarea>
                     <div class="status-bar" id="status">就绪</div>
                 </div>
+                <div id="split-resizer" class="split-resizer" title="拖拽调整编辑/预览宽度"></div>
                 <div class="preview-pane" id="preview-pane">
                     <div class="split-title">预览区</div>
                     <div class="preview-body" id="preview-body"></div>
@@ -198,7 +211,10 @@
     <script src="js/fileTree.js"></script>
     <script src="js/editorCommands.js"></script>
     <script src="js/editorHistory.js"></script>
+    <script src="js/vendor/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="js/vendor/dom-to-image-more/3.5.0/dom-to-image-more.min.js"></script>
     <script src="js/editorExport.js"></script>
+    <script src="js/editorLayout.js"></script>
     <script src="js/editor.js"></script>
 </body>
 </html>
