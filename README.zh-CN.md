@@ -18,6 +18,10 @@
 | --- | --- |
 | <img src="docs/screenshots/comment-create.png" alt="选中文本添加评论" width="420"> | <img src="docs/screenshots/comment-thread.png" alt="团队协作评论线程" width="420"> |
 
+| 编辑并实时预览 |
+| --- |
+| <img src="docs/screenshots/editor-live-preview.png" alt="Markdown 编辑器双栏实时预览" width="860"> |
+
 ## ✨ 功能特性
 
 ### 核心功能

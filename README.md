@@ -20,6 +20,10 @@ The backend is built with Node.js, Express, TypeScript, Chokidar, and WebSocket.
 | --- | --- |
 | <img src="docs/screenshots/comment-create.png" alt="Add a comment to selected text" width="420"> | <img src="docs/screenshots/comment-thread.png" alt="Comment thread for team collaboration" width="420"> |
 
+| Edit and preview in real time |
+| --- |
+| <img src="docs/screenshots/editor-live-preview.png" alt="Markdown editor with real-time split preview" width="860"> |
+
 ## Features
 
 ### Markdown Reading
