@@ -4,6 +4,20 @@
 
 一个基于 TypeScript 的 Markdown 文件预览与编辑器，支持实时渲染、流程图、多主题、文件树、文档大纲、代码高亮与响应式布局。后端使用 Node.js + Express，前端以原生 HTML/CSS/JS 结合 Marked.js、Prism.js 实现。
 
+## 🖼️ 效果图
+
+| 首页 | 文档预览与左侧大纲 |
+| --- | --- |
+| <img src="docs/screenshots/home.png" alt="Markdown Viewer 首页" width="420"> | <img src="docs/screenshots/document-preview-outline.png" alt="文档预览、文件树与文档大纲" width="420"> |
+
+| 文档内链接跳转 | Mermaid 与 PlantUML 图表渲染 |
+| --- | --- |
+| <img src="docs/screenshots/internal-link-navigation.png" alt="文档内相对链接跳转" width="420"> | <img src="docs/screenshots/diagrams-mermaid-plantuml.png" alt="Mermaid 和 PlantUML 图表渲染" width="420"> |
+
+| 选中文本添加评论 | 团队协作评论线程 |
+| --- | --- |
+| <img src="docs/screenshots/comment-create.png" alt="选中文本添加评论" width="420"> | <img src="docs/screenshots/comment-thread.png" alt="团队协作评论线程" width="420"> |
+
 ## ✨ 功能特性
 
 ### 核心功能

@@ -6,6 +6,20 @@ Markdown Viewer is a TypeScript-based Markdown previewer and editor for local wo
 
 The backend is built with Node.js, Express, TypeScript, Chokidar, and WebSocket. The frontend uses plain HTML/CSS/JavaScript with Marked.js, Prism.js, Mermaid, KaTeX, and related browser-side utilities.
 
+## Screenshots
+
+| Home | Document preview with outline |
+| --- | --- |
+| <img src="docs/screenshots/home.png" alt="Markdown Viewer home screen" width="420"> | <img src="docs/screenshots/document-preview-outline.png" alt="Document preview with file tree and outline" width="420"> |
+
+| Internal links | Mermaid and PlantUML diagrams |
+| --- | --- |
+| <img src="docs/screenshots/internal-link-navigation.png" alt="Internal Markdown link navigation" width="420"> | <img src="docs/screenshots/diagrams-mermaid-plantuml.png" alt="Mermaid and PlantUML rendering" width="420"> |
+
+| Add selected-text comments | Team comment thread |
+| --- | --- |
+| <img src="docs/screenshots/comment-create.png" alt="Add a comment to selected text" width="420"> | <img src="docs/screenshots/comment-thread.png" alt="Comment thread for team collaboration" width="420"> |
+
 ## Features
 
 ### Markdown Reading
