@@ -1,6 +1,6 @@
 // AIGC START
 const assert = require('assert');
-const { resolveDocumentHref } = require('./src/public/js/linkUtils.js');
+const { resolveDocumentHref } = require('../src/public/js/linkUtils.js');
 
 function testResolveRelativeLink() {
     assert.strictEqual(

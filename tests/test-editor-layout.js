@@ -1,6 +1,6 @@
 // AIGC START
 const assert = require('assert');
-const layout = require('./src/public/js/editorLayout.js');
+const layout = require('../src/public/js/editorLayout.js');
 
 function testNormalizeMode() {
     assert.strictEqual(layout.normalizeLayoutMode('edit'), 'edit');

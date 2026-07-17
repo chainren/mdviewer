@@ -1,6 +1,6 @@
 // AIGC START
 const assert = require('assert');
-const math = require('./src/public/js/markdownMath.js');
+const math = require('../src/public/js/markdownMath.js');
 
 function testProtectAndRestoreMath() {
     const source = '公式 $a_b$ 和 $$c^2$$\n\n```js\nconst price = "$5";\n```';

@@ -1,6 +1,6 @@
 // AIGC START
 const assert = require('assert');
-const bump = require('./scripts/bump-version.js');
+const bump = require('../scripts/bump-version.js');
 
 function testParseVersion() {
     assert.deepStrictEqual(bump.parseVersion('1.2.3'), { major: 1, minor: 2, patch: 3 });

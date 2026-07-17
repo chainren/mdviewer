@@ -1,6 +1,6 @@
 // AIGC START
 const assert = require('assert');
-const { createHistoryManager } = require('./src/public/js/editorHistory.js');
+const { createHistoryManager } = require('../src/public/js/editorHistory.js');
 
 function testUndoRedo() {
     const history = createHistoryManager(3);

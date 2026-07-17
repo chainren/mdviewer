@@ -1,7 +1,7 @@
 // AIGC START
 const assert = require('assert');
-const packageJson = require('./package.json');
-const version = require('./dist/version.js');
+const packageJson = require('../package.json');
+const version = require('../dist/version.js');
 
 function testVersionMatchesPackage() {
     assert.strictEqual(version.APP_VERSION, packageJson.version);

@@ -1,6 +1,6 @@
 // AIGC START
 const assert = require('assert');
-const commands = require('./src/public/js/editorCommands.js');
+const commands = require('../src/public/js/editorCommands.js');
 
 function createTextarea(value, start, end) {
     return {

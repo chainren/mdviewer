@@ -1,6 +1,6 @@
 // AIGC START
 const assert = require('assert');
-const portUtils = require('./dist/portUtils.js');
+const portUtils = require('../dist/portUtils.js');
 
 async function testParsePort() {
     assert.strictEqual(portUtils.parsePortValue(undefined, undefined, 3001, 5080), 3001);

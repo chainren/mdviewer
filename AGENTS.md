@@ -33,9 +33,12 @@ npm run build:bundle
 本项目目前使用独立的 Node.js 脚本进行测试，没有集成的测试框架。
 ```bash
 # 运行特定测试脚本
-node test-nested.js
-node test-regex.js
-# ... 运行根目录下其他 test-*.js 文件
+node tests/test-editor-commands.js
+node tests/test-markdown-math.js
+# ... 运行 tests/ 下其他 test-*.js 文件
+
+# 运行全部本地测试脚本（会先构建 dist/）
+npm test
 ```
 
 ## 3. 代码风格规范

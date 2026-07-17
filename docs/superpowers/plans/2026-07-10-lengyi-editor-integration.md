@@ -13,7 +13,7 @@
 ### Task 1: 可测试编辑命令模块
 
 **Files:**
-- Create: `test-editor-commands.js`
+- Create: `tests/test-editor-commands.js`
 - Create: `src/public/js/editorCommands.js`
 
 - [ ] **Step 1: 编写失败测试**
@@ -22,7 +22,7 @@
 
 - [ ] **Step 2: 验证测试失败**
 
-Run: `node test-editor-commands.js`
+Run: `node tests/test-editor-commands.js`
 Expected: 因 `src/public/js/editorCommands.js` 不存在而失败。
 
 - [ ] **Step 3: 实现命令模块**
@@ -31,7 +31,7 @@ Expected: 因 `src/public/js/editorCommands.js` 不存在而失败。
 
 - [ ] **Step 4: 验证测试通过**
 
-Run: `node test-editor-commands.js`
+Run: `node tests/test-editor-commands.js`
 Expected: 输出 `editor command tests passed`。
 
 ### Task 2: 编辑器 UI 集成
@@ -69,7 +69,7 @@ Expected: 输出 `editor command tests passed`。
 
 - [ ] **Step 2: 运行验证**
 
-Run: `node test-editor-commands.js`
+Run: `node tests/test-editor-commands.js`
 Run: `npm run build`
 Expected: 命令测试通过，TypeScript 构建通过。
 

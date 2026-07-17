@@ -1,9 +1,10 @@
 // AIGC START
 const assert = require('assert');
 const fs = require('fs');
+const path = require('path');
 
-const html = fs.readFileSync('src/public/editor.html', 'utf8');
-const editorJs = fs.readFileSync('src/public/js/editor.js', 'utf8');
+const html = fs.readFileSync(path.resolve(__dirname, '../src/public/editor.html'), 'utf8');
+const editorJs = fs.readFileSync(path.resolve(__dirname, '../src/public/js/editor.js'), 'utf8');
 
 function assertContains(source, pattern, message) {
     assert.ok(pattern.test(source), message);

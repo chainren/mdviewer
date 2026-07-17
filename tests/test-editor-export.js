@@ -1,6 +1,6 @@
 // AIGC START
 const assert = require('assert');
-const editorExport = require('./src/public/js/editorExport.js');
+const editorExport = require('../src/public/js/editorExport.js');
 
 function testBaseFilename() {
     assert.strictEqual(editorExport.baseFilename('docs/demo.markdown', 'html'), 'demo.html');

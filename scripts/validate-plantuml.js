@@ -68,7 +68,7 @@ function fetchSvg(url) {
 }
 
 (async () => {
-  const mdPath = path.resolve(__dirname, '../test-plantuml.md');
+  const mdPath = path.resolve(__dirname, '../tests/fixtures/test-plantuml.md');
   const md = fs.readFileSync(mdPath, 'utf8');
   const src = extractPlantUML(md);
   if (!src) {

@@ -1,7 +1,7 @@
 // AIGC START
 const assert = require('assert');
 const path = require('path');
-const assetUtils = require('./dist/assetUtils.js');
+const assetUtils = require('../dist/assetUtils.js');
 
 function testParseImageDataUrl() {
     const parsed = assetUtils.parseImageDataUrl('data:image/png;base64,aGVsbG8=', 1024);

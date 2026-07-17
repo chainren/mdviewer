@@ -28,6 +28,9 @@ mdviewer/
 ├── docs/
 │   ├── user-guide.md
 │   └── development.md
+├── tests/
+│   ├── test-*.js          # 独立 Node.js 测试脚本
+│   └── fixtures/          # Markdown 示例与测试工作区
 ├── README.md
 ├── package.json
 └── tsconfig.json
@@ -98,7 +101,7 @@ mdviewer/
 - 保存：`POST /api/file/:path`，入参 `{ content, lastModified }`
 - 并发冲突：服务端以 `stat.mtimeMs` 比较，冲突返回 409；前端弹窗“覆盖保存”后以 `{ override: true }` 重试
 - 另存为：弹窗文件树选择目录 + 输入文件名；成功后替换地址栏 `file` 参数继续编辑
-- 编辑命令：`editorCommands.js` 暴露 CommonJS 与浏览器全局 `MdEditorCommands`，测试脚本可直接覆盖格式化、插入和查找替换逻辑
+- 编辑命令：`editorCommands.js` 暴露 CommonJS 与浏览器全局 `MdEditorCommands`，`tests/` 下的测试脚本可直接覆盖格式化、插入和查找替换逻辑
 - 历史与导出：`editorHistory.js` 管理撤销/重做栈，`editorExport.js` 负责导出文件名、HTML/Word 包装与 Blob 下载
 - 工具栏：支持加粗/斜体/下划线/删除线、代码、引用、列表、任务列表、链接、图片上传、表格、Mermaid、查找替换和导出
 - 图片资产：本地图片通过 `POST /api/asset/:path` 保存到 Markdown 同级 `assets/<文档名>/` 目录，正文插入相对路径
