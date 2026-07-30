@@ -2,7 +2,11 @@ class MarkdownViewerApp {
     constructor() {
         this.fileTree = null;
         this.renderer = null;
+        this.structuredPreview = null;
+        this.htmlPreview = null;
         this.currentFile = null;
+        this.currentDocumentType = null;
+        this.loadToken = 0;
         this.outlineVisible = true;
         this.sidebarCollapsed = false;
         this.themes = ['light', 'dark', 'blue', 'green', 'purple'];
@@ -195,6 +199,8 @@ class MarkdownViewerApp {
 
     setupRenderer() {
         this.renderer = new MarkdownRenderer();
+        this.structuredPreview = new StructuredPreview(document.getElementById('content-body'));
+        this.htmlPreview = new HtmlPreview(document.getElementById('content-body'));
     }
 
     setupFileTree() {
@@ -237,13 +243,43 @@ class MarkdownViewerApp {
     }
 
     handleWebSocketMessage(message) {
-        if (message.type === 'file-change' && this.currentFile) {
-            const changedFile = message.data.path;
-            if (changedFile.includes(this.currentFile.path)) {
-                this.loadFile(this.currentFile, true);
-            }
+        if (message.type !== 'file-change') return;
+        const event = message.data || {};
+        if (event.type === 'add' || event.type === 'unlink') {
+            this.fileTree.loadFiles();
+        }
+        if (this.currentFile && event.type === 'unlink' && event.path === this.currentFile.path) {
+            this.handleCurrentFileDeleted();
+            return;
+        }
+        if (this.currentFile && event.type === 'change' && event.path === this.currentFile.path) {
+            this.loadFile(this.currentFile, true);
         }
     }
+
+    // AIGC START
+    handleCurrentFileDeleted() {
+        this.loadToken += 1;
+        // AIGC START
+        this.structuredPreview.cancel();
+        // AIGC END
+        this.currentFile = null;
+        this.fileTree.setCurrentFile(null);
+        this.fileTree.updateBreadcrumb('');
+        this.setPreviewCapabilities(null);
+        document.getElementById('content-title').textContent = '文件已删除';
+
+        const contentBody = document.getElementById('content-body');
+        const state = document.createElement('div');
+        state.className = 'placeholder missing-file-state';
+        state.textContent = '当前文件已被删除，请从文件列表选择其他文件。';
+        contentBody.replaceChildren(state);
+
+        const url = new URL(window.location);
+        url.searchParams.delete('file');
+        window.history.replaceState({}, '', url.toString());
+    }
+    // AIGC END
 
     setupEventListeners() {
         document.getElementById('theme-toggle').addEventListener('click', () => {
@@ -431,6 +467,8 @@ class MarkdownViewerApp {
             return;
         }
 
+        this.structuredPreview.cancel();
+        const loadToken = ++this.loadToken;
         try {
             this.currentFile = file;
             this.fileTree.setCurrentFile(file);
@@ -451,22 +489,81 @@ class MarkdownViewerApp {
             
             const response = await fetch(`/api/file/${encodeURIComponent(file.path)}`);
             const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.error || '加载文件失败');
+            }
+            if (loadToken !== this.loadToken) return;
+
+            const documentType = data.documentType || file.documentType || this.inferDocumentType(file.path);
+            this.setPreviewCapabilities(documentType);
             
-            // 使用服务器返回的大纲数据，确保ID一致性
-            await this.renderer.renderContent(data.content, { basePath: data.path });
-            this.renderOutline(data.outline);
-            this.loadComments(file.path);
+            if (documentType === 'markdown') {
+                await this.renderer.renderContent(data.content, { basePath: data.path });
+                if (loadToken !== this.loadToken) return;
+                this.renderOutline(data.outline);
+                // AIGC START
+                this.loadComments(file.path, loadToken);
+                // AIGC END
+            } else if (documentType === 'html') {
+                this.htmlPreview.render(data.content, data.path);
+            } else if (documentType === 'yaml' || documentType === 'json') {
+                await this.structuredPreview.render(data.content, documentType);
+            }
             
             this.scrollToTop();
         } catch (error) {
+            if (loadToken !== this.loadToken) return;
             console.error('Error loading file:', error);
-            document.getElementById('content-body').innerHTML = `
-                <div class="error">
-                    <h3>加载文件失败</h3>
-                    <p>${error.message}</p>
-                </div>
-            `;
+            const wrapper = document.createElement('div');
+            wrapper.className = 'error';
+            const title = document.createElement('h3');
+            title.textContent = '加载文件失败';
+            const message = document.createElement('p');
+            message.textContent = error.message;
+            wrapper.append(title, message);
+            document.getElementById('content-body').replaceChildren(wrapper);
         }
+    }
+
+    inferDocumentType(filePath) {
+        const extension = (filePath.split('.').pop() || '').toLowerCase();
+        if (['md', 'markdown', 'mdown', 'mkd', 'mkdn'].includes(extension)) return 'markdown';
+        if (['html', 'htm'].includes(extension)) return 'html';
+        if (['yaml', 'yml'].includes(extension)) return 'yaml';
+        if (extension === 'json') return 'json';
+        return null;
+    }
+
+    setPreviewCapabilities(documentType) {
+        this.currentDocumentType = documentType;
+        const isMarkdown = documentType === 'markdown';
+        const outlinePanel = document.getElementById('outline-panel');
+        const outlineResizer = document.getElementById('resizer-outline');
+        const editButton = document.getElementById('edit-file');
+        const floatingStats = document.getElementById('comment-floating-stats');
+
+        if (outlinePanel) outlinePanel.style.display = isMarkdown ? '' : 'none';
+        if (outlineResizer) outlineResizer.style.display = isMarkdown && this.outlineVisible ? '' : 'none';
+        if (editButton) {
+            editButton.disabled = !isMarkdown;
+            editButton.hidden = !isMarkdown;
+        }
+        if (floatingStats) {
+            floatingStats.classList.toggle('visible', isMarkdown && floatingStats.querySelector('#comment-total-count')?.textContent !== '💬 0');
+            floatingStats.hidden = !isMarkdown;
+        }
+        if (!isMarkdown) {
+            document.getElementById('outline-content').innerHTML = '<div class="placeholder">当前格式不支持大纲</div>';
+            this.clearCommentState();
+        }
+    }
+
+    clearCommentState() {
+        const floatingStats = document.getElementById('comment-floating-stats');
+        if (floatingStats) floatingStats.classList.remove('visible');
+        document.querySelectorAll('.comment-form, .comments-container').forEach(element => {
+            element.innerHTML = '';
+        });
     }
 
     renderOutline(outline) {
@@ -943,7 +1040,7 @@ class MarkdownViewerApp {
     }
 
     editCurrentFile() {
-        if (this.currentFile) {
+        if (this.currentFile && this.currentDocumentType === 'markdown') {
             const filePath = this.currentFile.path;
             const returnUrl = window.location.pathname + window.location.search;
             const editUrl = `/editor.html?file=${encodeURIComponent(filePath)}&return=${encodeURIComponent(returnUrl)}`;
@@ -1598,17 +1695,20 @@ class MarkdownViewerApp {
         }
     }
 
-    async loadComments(filePath) {
+    // AIGC START
+    async loadComments(filePath, requestToken = this.loadToken) {
         try {
             const response = await fetch(`/api/comments/${encodeURIComponent(filePath)}`);
             const data = await response.json();
-            if (data.success) {
+            if (data.success && requestToken === this.loadToken && this.currentFile &&
+                this.currentFile.path === filePath && this.currentDocumentType === 'markdown') {
                 this.renderAllComments(data.comments);
             }
         } catch (error) {
             console.error('Error loading comments:', error);
         }
     }
+    // AIGC END
 
     renderAllComments(comments) {
         // 先清除旧的高亮标记

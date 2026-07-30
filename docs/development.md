@@ -1,6 +1,6 @@
 # 开发文档
 
-本文档面向开发者，描述项目结构、关键实现、接口与安全约束，涵盖内置编辑器、文件树式“另存为”与并发冲突处理的实现细节。
+本文档面向开发者，描述项目结构、关键实现、接口与安全约束，涵盖多格式预览、内置编辑器、文件树式“另存为”与并发冲突处理的实现细节。
 
 ## 项目结构
 
@@ -21,6 +21,11 @@ mdviewer/
 │           ├── app.js         # 文件树、导航、编辑入口
 │           ├── renderer.js    # MarkdownRenderer（Mermaid/Prism 集成）
 │           ├── fileTree.js    # 文件树组件
+│           ├── htmlPreview.js  # HTML 沙箱预览与链接/资源重写
+│           ├── previewLinkUtils.js       # HTML 链接分类，可独立测试
+│           ├── structuredPreview.js      # YAML/JSON 折叠树渲染
+│           ├── structuredPreviewUtils.js # 解析、错误映射与树模型
+│           └── structuredPreviewWorker.js# 大文件解析 Worker
 │           ├── editorCommands.js # 可测试的 Markdown 编辑命令
 │           ├── editorHistory.js  # 编辑器撤销/重做历史管理
 │           ├── editorExport.js   # 编辑器导出 HTML/Word/Markdown 工具
@@ -41,7 +46,7 @@ mdviewer/
 - Node.js + Express + TypeScript
 - Chokidar：文件监听
 - ws：WebSocket 推送
-- 前端：Marked.js（Markdown），Prism.js（代码高亮），Mermaid（流程图）
+- 前端：Marked.js（Markdown），Prism.js（代码高亮），Mermaid（流程图），js-yaml（YAML 解析）
 - CDN：使用官方稳定路径（不加占位 SRI）
 
 ## 构建与运行
@@ -93,7 +98,15 @@ mdviewer/
 ### 文件树（fileTree.js）
 
 - 使用 `/api/files` 返回的树结构渲染，支持展开/收起
+- 文件树只展示 Markdown、HTML、YAML、JSON；CSS、JS、图片等资源不作为文档节点展示
 - 另存为弹窗中复用渲染逻辑，仅允许选择目录
+
+### 多格式预览
+
+- `app.js` 根据服务端返回的 `documentType` 分发到 MarkdownRenderer、HtmlPreview 或 StructuredPreview。
+- HTML 通过 `srcdoc` 放入 sandbox iframe，不授予 `allow-scripts` 和 `allow-forms`；脚本、事件属性、`base`、嵌入式活动内容和危险 meta 标签会在进入 iframe 前移除。
+- HTML 链接由 `previewLinkUtils.js` 分类：支持的文档回到 Viewer，外部链接新标签页，其他本地资源通过 `/api/resource/:path` 读取；`javascript:`、`data:`、`vbscript:` 等协议会被禁用。
+- YAML/JSON 由 `structuredPreviewWorker.js` 解析，`structuredPreviewUtils.js` 负责统一树模型、YAML 错误行列信息和循环引用保护。Worker 结果带 token，切换文件时会取消旧 Worker，防止旧结果覆盖新文档。
 
 ### 内置编辑器（editorCommands.js + editor.js + editor.html）
 
@@ -114,11 +127,15 @@ mdviewer/
 ## 后端接口与安全
 
 ### GET `/api/files`
-- 返回工作区内的 Markdown 文件树，过滤非 Markdown 扩展
+- 返回工作区内可预览文档树，仅包含 Markdown、HTML、YAML、JSON
 
 ### GET `/api/file/:path`
-- 读取并返回 `{ content, outline, path, lastModified }`
+- 读取并返回 `{ content, documentType, outline?, path, lastModified }`；大纲仅 Markdown 返回
 - 路径解析：`resolveWorkspacePath(rawPath)` 防止越权与符号链接逃逸
+
+### GET `/api/resource/:path`
+- 为 HTML 预览提供工作区内 CSS、图片、字体和其他静态资源
+- 必须经过 `resolveWorkspaceResource` 的工作区边界与真实路径校验
 
 ### POST `/api/file/:path`
 - 请求体：`{ content: string, lastModified?: number, override?: boolean }`

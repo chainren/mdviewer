@@ -1,0 +1,494 @@
+<!doctype html>
+<!-- AIGC START -->
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%233159d9'/%3E%3Cpath d='M15 18h34v28H15z' fill='none' stroke='white' stroke-width='4'/%3E%3Cpath d='M22 27l7 8 7-8 7 8' fill='none' stroke='white' stroke-width='4'/%3E%3C/svg%3E">
+    <title>Ideation: Markdown Viewer 下一阶段优化</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            --bg: #f5f7fb;
+            --surface: #ffffff;
+            --surface-soft: #eef3fb;
+            --text: #172033;
+            --muted: #526077;
+            --line: #d8e0ec;
+            --accent: #3159d9;
+            --accent-soft: #e7edff;
+            --accent-text: #203d9f;
+            --success-soft: #e4f5ec;
+            --success-text: #17613d;
+            --warn-soft: #fff1cf;
+            --warn-text: #714c00;
+            --danger-soft: #fde8e8;
+            --danger-text: #8a2525;
+            --shadow: 0 18px 45px rgba(28, 43, 77, 0.10);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #0f1420;
+                --surface: #171e2c;
+                --surface-soft: #202a3c;
+                --text: #edf2ff;
+                --muted: #b5c0d6;
+                --line: #33405a;
+                --accent: #90a8ff;
+                --accent-soft: #25335f;
+                --accent-text: #d8e0ff;
+                --success-soft: #183d2c;
+                --success-text: #bfead2;
+                --warn-soft: #473913;
+                --warn-text: #ffe29b;
+                --danger-soft: #4a2328;
+                --danger-text: #ffc9cf;
+                --shadow: 0 18px 45px rgba(0, 0, 0, 0.30);
+            }
+        }
+
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font: 16px/1.72 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+        a { color: var(--accent); }
+        code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 0.92em;
+            background: var(--surface-soft);
+            border-radius: 0.35rem;
+            padding: 0.08rem 0.32rem;
+        }
+        .page {
+            width: min(94vw, 96rem);
+            margin: 0 auto;
+            padding: 2.5rem 0 4rem;
+        }
+        .hero {
+            background: linear-gradient(135deg, var(--surface) 0%, var(--accent-soft) 100%);
+            border: 1px solid var(--line);
+            border-radius: 1.4rem;
+            box-shadow: var(--shadow);
+            padding: clamp(1.5rem, 4vw, 3.5rem);
+        }
+        .eyebrow {
+            margin: 0 0 0.7rem;
+            color: var(--accent-text);
+            font-size: 0.78rem;
+            font-weight: 800;
+            letter-spacing: 0.13em;
+            text-transform: uppercase;
+        }
+        h1, h2, h3 { line-height: 1.2; }
+        h1 { margin: 0; font-size: clamp(2rem, 5vw, 4.2rem); max-width: 18ch; }
+        h2 { margin: 0 0 1rem; font-size: clamp(1.5rem, 3vw, 2.2rem); }
+        h3 { margin: 0; font-size: 1.35rem; }
+        .hero p { max-width: 72ch; }
+        .meta-strip, .chips, .idea-nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            margin-top: 1.2rem;
+        }
+        .chip, .idea-nav a {
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: var(--surface);
+            color: var(--text);
+            padding: 0.38rem 0.72rem;
+            font-size: 0.86rem;
+            text-decoration: none;
+            max-width: 100%;
+            overflow-wrap: anywhere;
+        }
+        .chip strong { margin-right: 0.35rem; }
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(14rem, 20rem);
+            gap: 1.2rem;
+            align-items: start;
+            margin-top: 1.2rem;
+        }
+        main, aside { min-width: 0; }
+        aside {
+            position: sticky;
+            top: 1rem;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 1rem;
+            padding: 1rem;
+        }
+        aside a {
+            display: block;
+            padding: 0.45rem 0.55rem;
+            border-radius: 0.55rem;
+            text-decoration: none;
+        }
+        aside a:hover { background: var(--surface-soft); }
+        section {
+            margin-top: 1.2rem;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 1rem;
+            padding: clamp(1.1rem, 3vw, 2rem);
+            min-width: 0;
+        }
+        .prose { max-width: 72ch; }
+        .axis-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+            gap: 0.7rem;
+        }
+        .axis {
+            border-radius: 0.8rem;
+            background: var(--surface-soft);
+            padding: 0.8rem;
+            font-weight: 700;
+        }
+        .idea-list { display: grid; gap: 1rem; margin-top: 1rem; min-width: 0; }
+        .idea-card {
+            border: 1px solid var(--line);
+            border-radius: 1rem;
+            padding: clamp(1rem, 2.5vw, 1.6rem);
+            background: var(--surface);
+            box-shadow: 0 8px 22px rgba(28, 43, 77, 0.06);
+            min-width: 0;
+        }
+        .idea-head {
+            display: flex;
+            gap: 0.8rem;
+            align-items: flex-start;
+            min-width: 0;
+        }
+        .idea-head > div:last-child { min-width: 0; }
+        .idea-card p, .idea-card dd { overflow-wrap: anywhere; }
+        .rank {
+            flex: 0 0 auto;
+            min-width: 2.8rem;
+            border-radius: 0.8rem;
+            background: var(--accent-soft);
+            color: var(--accent-text);
+            padding: 0.45rem 0.55rem;
+            font-weight: 900;
+            text-align: center;
+        }
+        dl {
+            display: grid;
+            grid-template-columns: minmax(7.2rem, 10rem) minmax(0, 1fr);
+            gap: 0.55rem 0.9rem;
+            margin: 1rem 0 0;
+        }
+        dt { font-weight: 800; color: var(--muted); }
+        dd { margin: 0; }
+        .metrics {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        .metric {
+            border-radius: 0.55rem;
+            background: var(--success-soft);
+            color: var(--success-text);
+            padding: 0.3rem 0.55rem;
+            font-size: 0.82rem;
+            font-weight: 800;
+        }
+        .metric.complexity { background: var(--warn-soft); color: var(--warn-text); }
+        .visual {
+            margin: 1.1rem 0 0;
+            background: var(--surface-soft);
+            border-radius: 0.9rem;
+            padding: 0.8rem;
+            overflow-x: auto;
+            max-width: 100%;
+        }
+        svg { display: block; width: 100%; min-width: 38rem; height: auto; }
+        .svg-box { fill: var(--surface); stroke: var(--line); stroke-width: 2; }
+        .svg-accent { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; }
+        .svg-text { fill: var(--text); font: 700 15px ui-sans-serif, system-ui, sans-serif; }
+        .svg-muted { fill: var(--muted); font: 13px ui-sans-serif, system-ui, sans-serif; }
+        .svg-line { stroke: var(--accent); stroke-width: 2.5; fill: none; marker-end: url(#arrow); }
+        table { display: block; width: 100%; max-width: 100%; overflow-x: auto; border-collapse: collapse; font-size: 0.92rem; }
+        th, td { border-bottom: 1px solid var(--line); padding: 0.72rem; text-align: left; vertical-align: top; }
+        th { background: var(--surface-soft); }
+        .note {
+            border-radius: 0.8rem;
+            background: var(--warn-soft);
+            color: var(--warn-text);
+            padding: 0.8rem 1rem;
+            margin-top: 1rem;
+        }
+        .references ul { columns: 2; column-gap: 2rem; }
+        footer {
+            color: var(--muted);
+            text-align: center;
+            padding: 2rem 1rem 0;
+            font-size: 0.86rem;
+        }
+        @media (max-width: 860px) {
+            .layout { grid-template-columns: 1fr; }
+            aside { position: static; order: -1; }
+            dl { grid-template-columns: 1fr; gap: 0.2rem; }
+            dd { margin-bottom: 0.55rem; }
+            .references ul { columns: 1; }
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+    <header class="hero">
+        <p class="eyebrow">Repository-grounded ideation</p>
+        <h1>Markdown Viewer 下一阶段优化</h1>
+        <p>基于当前代码、测试、近期提交和 2026 年同类工具趋势，筛选出 7 个值得进入需求澄清的方向。排序优先考虑用户价值、证据强度、长期杠杆、实现风险与五个主题轴的覆盖。</p>
+        <div class="meta-strip" aria-label="Metadata">
+            <span class="chip"><strong>Date</strong> 2026-07-28</span>
+            <span class="chip"><strong>Topic</strong> markdown-viewer-next-optimizations</span>
+            <span class="chip"><strong>Focus</strong> 当前项目接下来可以做哪些优化</span>
+            <span class="chip"><strong>Mode</strong> repo-grounded</span>
+        </div>
+    </header>
+
+    <div class="layout">
+        <main>
+            <section id="grounding-context">
+                <h2>Grounding Context</h2>
+                <div class="prose">
+                    <p><strong>Codebase Context：</strong>项目已从轻量预览器扩展为本地 Markdown 工作台，覆盖文件树、大纲、编辑、实时预览、评论、数学与图表、图片资产和多格式导出；核心约束仍是单文件 CLI、零配置、本地优先与 Markdown 文件作为真实数据源。</p>
+                    <p>当前高杠杆问题集中在五处：Markdown HTML 直接进入 DOM；保存冲突主要依赖 mtime 与强制覆盖；评论绑定路径和瞬时文本位置；大型工作区仍以全量扫描与浏览器文件名过滤为主；前端大型全局类、双大纲实现、静态接线测试和独立 WebSocket 端口持续增加维护与部署成本。</p>
+                    <p>外部趋势也指向同一方向：成熟工具正在强化渲染后差异审阅、链接诊断、反向链接、统一命令入口、frontmatter 结构化视图和自动化接口，而不是继续堆叠 Markdown 方言。Marked 官方明确不负责净化输出，Mermaid 与 PlantUML 也要求显式维护安全和网络边界。</p>
+                </div>
+            </section>
+
+            <section id="topic-axes">
+                <h2>Topic Axes</h2>
+                <div class="axis-grid">
+                    <div class="axis">1. 安全与数据可靠性</div>
+                    <div class="axis">2. 编辑与知识工作流体验</div>
+                    <div class="axis">3. 规模化性能与检索</div>
+                    <div class="axis">4. 离线部署与可移植性</div>
+                    <div class="axis">5. 工程架构与质量</div>
+                </div>
+            </section>
+
+            <section id="ranked-ideas">
+                <h2>Ranked Ideas</h2>
+                <nav class="idea-nav" aria-label="Ranked idea jump list">
+                    <a href="#idea-1">I1 安全本地工作区</a>
+                    <a href="#idea-2">I2 文档事务层</a>
+                    <a href="#idea-3">I3 Markdown 智能内核</a>
+                    <a href="#idea-4">I4 可回放可靠性系统</a>
+                    <a href="#idea-5">I5 单端口可移植运行时</a>
+                    <a href="#idea-6">I6 可复现渲染图</a>
+                    <a href="#idea-7">I7 耐久审阅层</a>
+                </nav>
+
+                <div class="idea-list">
+                    <article class="idea-card" id="idea-1">
+                        <div class="idea-head"><div class="rank">I1</div><div><p class="eyebrow">Trust & Privacy</p><h3>建立可证明的“安全本地工作区”契约</h3></div></div>
+                        <p>默认把所有 Markdown、HTML、图表和远程资源视为不可信：Marked 输出经 HTML 净化与 URL 协议白名单，Mermaid 使用 strict/sandbox，原始 HTML 只能显式开启；所有网络请求经过统一能力代理。PlantUML 提供 <code>local / private / ask / disabled</code> 模式，界面持续显示工作区是否完全离线。</p>
+                        <dl>
+                            <dt>Axis</dt><dd>安全与数据可靠性；离线部署与可移植性</dd>
+                            <dt>Basis</dt><dd><code>direct:</code> <code>src/public/js/renderer.js:22</code> 设置 <code>sanitize: false</code>，<code>src/public/js/renderer.js:283</code> 将解析结果写入 <code>innerHTML</code>，<code>src/public/js/renderer.js:217</code> 默认请求公共 PlantUML 服务。<br><code>external:</code> Marked 明确声明不净化输出；Mermaid 推荐 strict/sandbox 安全级别。</dd>
+                            <dt>Rationale</dt><dd>“本地优先”不应只描述文件存储位置，还应成为可以通过断网测试和权限状态验证的隐私承诺。该方向同时处理 XSS、隐式网络泄漏、图表可用性和陌生仓库信任问题。</dd>
+                            <dt>Downsides</dt><dd>可能改变现有原始 HTML 行为；需要设计工作区授权、兼容迁移和远程图片策略，安全策略过严也可能降低文档表现力。</dd>
+                        </dl>
+                        <div class="metrics"><span class="metric">Confidence 97%</span><span class="metric complexity">Complexity Medium–High</span></div>
+                        <div class="visual" aria-label="安全本地工作区概念图">
+                            <svg viewBox="0 0 820 210" role="img">
+                                <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="currentColor"></path></marker></defs>
+                                <rect class="svg-box" x="24" y="64" rx="16" width="180" height="82"></rect>
+                                <text class="svg-text" x="114" y="96" text-anchor="middle">陌生 Markdown</text>
+                                <text class="svg-muted" x="114" y="120" text-anchor="middle">HTML · 图片 · 图表</text>
+                                <path class="svg-line" d="M204 105 H314"></path>
+                                <rect class="svg-accent" x="314" y="36" rx="18" width="210" height="138"></rect>
+                                <text class="svg-text" x="419" y="78" text-anchor="middle">能力与安全代理</text>
+                                <text class="svg-muted" x="419" y="105" text-anchor="middle">净化 · 协议白名单</text>
+                                <text class="svg-muted" x="419" y="128" text-anchor="middle">网络授权 · 图表提供者</text>
+                                <path class="svg-line" d="M524 105 H624"></path>
+                                <rect class="svg-box" x="624" y="64" rx="16" width="172" height="82"></rect>
+                                <text class="svg-text" x="710" y="96" text-anchor="middle">安全预览</text>
+                                <text class="svg-muted" x="710" y="120" text-anchor="middle">零网络可验证</text>
+                            </svg>
+                        </div>
+                    </article>
+
+                    <article class="idea-card" id="idea-2">
+                        <div class="idea-head"><div class="rank">I2</div><div><p class="eyebrow">Reliability</p><h3>用“文档事务层”取代强制覆盖</h3></div></div>
+                        <p>编辑时保存基线内容哈希并追加轻量草稿日志；真实保存通过临时文件、刷新和原子替换完成。外部修改发生后，自动比较基线、本地草稿和磁盘版本，对标题、列表、代码块等语义单元做三方合并，仅让用户处理真正冲突的部分。多文件重命名、链接更新和附件迁移进一步复用同一事务协调器。</p>
+                        <dl>
+                            <dt>Axis</dt><dd>安全与数据可靠性；编辑与知识工作流体验</dd>
+                            <dt>Basis</dt><dd><code>direct:</code> <code>src/server.ts:319</code> 以 mtime 判断冲突，<code>src/public/js/editor.js:402</code> 冲突后允许 <code>override: true</code>，<code>src/server.ts:324</code> 直接写目标文件，未保存内容主要依赖 <code>beforeunload</code>。</dd>
+                            <dt>Rationale</dt><dd>本地文件编辑器最昂贵的失败是内容丢失或覆盖外部修改。事务模型把“不丢内容”从用户必须正确点击的责任，升级为系统保证，并为自动保存、崩溃恢复、跨会话撤销和 AI 修改审阅打底。</dd>
+                            <dt>Downsides</dt><dd>三方语义合并和跨平台原子写入复杂；需要草稿清理、磁盘空间、恢复 UX 和异常中断测试，首版必须严格限制范围。</dd>
+                        </dl>
+                        <div class="metrics"><span class="metric">Confidence 95%</span><span class="metric complexity">Complexity High</span></div>
+                        <div class="visual" aria-label="文档事务层概念图">
+                            <svg viewBox="0 0 820 235" role="img">
+                                <defs><marker id="arrow-2" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="currentColor"></path></marker></defs>
+                                <rect class="svg-box" x="30" y="28" rx="14" width="180" height="58"></rect>
+                                <text class="svg-text" x="120" y="63" text-anchor="middle">基线版本</text>
+                                <rect class="svg-box" x="30" y="150" rx="14" width="180" height="58"></rect>
+                                <text class="svg-text" x="120" y="185" text-anchor="middle">磁盘新版本</text>
+                                <rect class="svg-box" x="314" y="88" rx="14" width="190" height="58"></rect>
+                                <text class="svg-text" x="409" y="123" text-anchor="middle">本地草稿日志</text>
+                                <path d="M210 57 C270 57,260 98,314 108" stroke="var(--accent)" stroke-width="2.5" fill="none"></path>
+                                <path d="M210 179 C270 179,260 140,314 128" stroke="var(--accent)" stroke-width="2.5" fill="none"></path>
+                                <path d="M504 117 H600" stroke="var(--accent)" stroke-width="2.5" fill="none"></path>
+                                <rect class="svg-accent" x="600" y="64" rx="18" width="190" height="106"></rect>
+                                <text class="svg-text" x="695" y="103" text-anchor="middle">语义三方合并</text>
+                                <text class="svg-muted" x="695" y="128" text-anchor="middle">无冲突自动合并</text>
+                                <text class="svg-muted" x="695" y="150" text-anchor="middle">原子提交到文件</text>
+                            </svg>
+                        </div>
+                    </article>
+
+                    <article class="idea-card" id="idea-3">
+                        <div class="idea-head"><div class="rank">I3</div><div><p class="eyebrow">Compounding Platform</p><h3>建设 Markdown Intelligence Core</h3></div></div>
+                        <p>抽取 Node 与浏览器共享的纯 Markdown 语义内核，并用 Chokidar 增量维护可删除重建的工作区索引。它统一标题 ID、源码范围、链接、反向链接、图片、frontmatter、图表和诊断；再通过命令注册表对 UI、快捷键、命令面板和 CLI 暴露能力。首批成果可同时包含全文搜索、快速打开、坏链接检查、重命名影响预览和反向链接。</p>
+                        <dl>
+                            <dt>Axis</dt><dd>规模化性能与检索；编辑与知识工作流体验；工程架构与质量</dd>
+                            <dt>Basis</dt><dd><code>direct:</code> <code>src/fileUtils.ts:63</code> 串行递归扫描，<code>src/public/js/fileTree.js:66</code> 只匹配文件名，<code>src/fileUtils.ts:119</code> 与 <code>src/public/js/renderer.js:309</code> 维护两套大纲逻辑。<br><code>external:</code> VS Code 的链接诊断和 Obsidian 的 Links、Backlinks、Bases、Command Palette 已验证工作区语义层价值。</dd>
+                            <dt>Rationale</dt><dd>它不是“再加一个搜索功能”，而是让未来一半工作区能力变成同一索引和语义模型的查询。每增加一种提取器，搜索、诊断、重构、导航和自动化都会同步增强。</dd>
+                            <dt>Downsides</dt><dd>范围极易膨胀；必须先锁定最小语义模型与首批 2–3 个用户结果，避免演变成插件平台或私有数据库。</dd>
+                        </dl>
+                        <div class="metrics"><span class="metric">Confidence 93%</span><span class="metric complexity">Complexity High</span></div>
+                        <div class="visual" aria-label="Markdown Intelligence Core 概念图">
+                            <svg viewBox="0 0 820 300" role="img">
+                                <circle class="svg-accent" cx="410" cy="150" r="78"></circle>
+                                <text class="svg-text" x="410" y="142" text-anchor="middle">Markdown</text>
+                                <text class="svg-text" x="410" y="166" text-anchor="middle">Intelligence Core</text>
+                                <rect class="svg-box" x="32" y="35" rx="14" width="180" height="58"></rect>
+                                <text class="svg-text" x="122" y="70" text-anchor="middle">全文搜索 / 快速打开</text>
+                                <rect class="svg-box" x="608" y="35" rx="14" width="180" height="58"></rect>
+                                <text class="svg-text" x="698" y="70" text-anchor="middle">链接诊断 / 重命名</text>
+                                <rect class="svg-box" x="32" y="207" rx="14" width="180" height="58"></rect>
+                                <text class="svg-text" x="122" y="242" text-anchor="middle">预览 / 编辑 / 导出</text>
+                                <rect class="svg-box" x="608" y="207" rx="14" width="180" height="58"></rect>
+                                <text class="svg-text" x="698" y="242" text-anchor="middle">命令面板 / CLI</text>
+                                <path d="M212 74 L342 126 M608 74 L478 126 M212 236 L342 174 M608 236 L478 174" stroke="var(--accent)" stroke-width="2.5" fill="none"></path>
+                            </svg>
+                        </div>
+                    </article>
+
+                    <article class="idea-card" id="idea-4">
+                        <div class="idea-head"><div class="rank">I4</div><div><p class="eyebrow">Quality Flywheel</p><h3>建立可回放的真实工作区可靠性系统</h3></div></div>
+                        <p>用微型 Markdown 工作区和事件脚本直接启动最终 <code>mdviewer.js</code>，通过无头浏览器回放打开、编辑、外部修改、保存冲突、重命名、符号链接、评论定位、图表失败、实时通道断线和跨平台路径。为文件事件、保存、渲染和评论操作记录不含正文的因果轨迹；每次事故同时沉淀为回归场景和 <code>docs/solutions/</code> 经验。</p>
+                        <dl>
+                            <dt>Axis</dt><dd>工程架构与质量；安全与数据可靠性</dd>
+                            <dt>Basis</dt><dd><code>direct:</code> <code>tests/test-editor-smoke.js:6</code> 读取静态源码，<code>tests/test-editor-smoke.js:30</code> 主要检查脚本接线，未启动真实服务器或浏览器。现有测试也未覆盖文件监听、WebSocket、保存冲突和真实图表渲染。<br><code>external:</code> Playwright 官方提供多浏览器、自动等待、截图和 Trace Viewer，适合回放端到端事故。</dd>
+                            <dt>Rationale</dt><dd>本地文件应用最难复现的是时序事故，而非纯函数错误。该系统让每次真实故障都变成永久资产，同时保护 I1–I3 这类高风险底座改造。</dd>
+                            <dt>Downsides</dt><dd>CI 时间和跨平台夹具维护成本会上升；需要避免轨迹记录正文或隐私内容，并控制场景数量以防测试套件失控。</dd>
+                        </dl>
+                        <div class="metrics"><span class="metric">Confidence 92%</span><span class="metric complexity">Complexity Medium</span></div>
+                    </article>
+
+                    <article class="idea-card" id="idea-5">
+                        <div class="idea-head"><div class="rank">I5</div><div><p class="eyebrow">Portability</p><h3>收敛为单端口、可解释降级的运行时</h3></div></div>
+                        <p>删除固定 <code>HTTP + 5080</code> 的独立 WebSocket 端口，将文件变化通知改为同端口 SSE 或同端口 WebSocket upgrade；不可用时降级为带 ETag 的条件轮询，并明确显示实时同步状态。启动时同时生成能力清单，解释本地 PlantUML、远程图表、事件通道和导出能力，而不是静默降级。</p>
+                        <dl>
+                            <dt>Axis</dt><dd>离线部署与可移植性</dd>
+                            <dt>Basis</dt><dd><code>direct:</code> <code>src/server.ts:551</code> 启动独立 WebSocket 服务，<code>src/public/js/app.js:212</code> 由浏览器计算偏移端口；Docker 文档只暴露 HTTP 端口。当前实时流量主要是服务端单向广播，SSE 与同端口升级均更贴合部署。</dd>
+                            <dt>Rationale</dt><dd>它解决“页面能打开但实时刷新坏了”的隐性故障，显著降低 Docker、HTTPS、反向代理、局域网与防火墙配置成本，同时让用户知道当前是否仍在实时同步。</dd>
+                            <dt>Downsides</dt><dd>需要兼容旧启动脚本和端口逻辑；SSE 的事件补偿、代理缓冲和浏览器连接限制要经过真实部署测试。</dd>
+                        </dl>
+                        <div class="metrics"><span class="metric">Confidence 91%</span><span class="metric complexity">Complexity Medium</span></div>
+                    </article>
+
+                    <article class="idea-card" id="idea-6">
+                        <div class="idea-head"><div class="rank">I6</div><div><p class="eyebrow">Performance & Consistency</p><h3>把预览与导出变成可复现的增量渲染图</h3></div></div>
+                        <p>按语义块生成内容指纹，建立“Markdown → 安全 HTML → Prism / KaTeX / Mermaid / PlantUML → 预览与导出”的依赖图。只重算受影响块，复用未变化的 DOM 与图表；预览、HTML、Word、PNG 和打印共享同一份渲染清单，记录主题、依赖版本、安全模式和资源策略。</p>
+                        <dl>
+                            <dt>Axis</dt><dd>规模化性能与检索；工程架构与质量</dd>
+                            <dt>Basis</dt><dd><code>direct:</code> <code>src/public/js/renderer.js:264</code> 每次解析完整内容，<code>src/public/js/renderer.js:287</code> 清空并替换容器，<code>src/public/js/renderer.js:227</code> 串行渲染全部 Mermaid；多个导出入口再次强制完整渲染。依赖声明与 vendored 实际版本还存在漂移。</dd>
+                            <dt>Rationale</dt><dd>该方向同时提升大文档延迟、图表重算、滚动稳定性和导出一致性；新增渲染器只需声明依赖和缓存键，不必重新设计性能策略。</dd>
+                            <dt>Downsides</dt><dd>实现成本高且容易过度工程化；应先建立性能基线，只有大文档和图表场景证明收益后再推进块级失效。</dd>
+                        </dl>
+                        <div class="metrics"><span class="metric">Confidence 84%</span><span class="metric complexity">Complexity High</span></div>
+                    </article>
+
+                    <article class="idea-card" id="idea-7">
+                        <div class="idea-head"><div class="rank">I7</div><div><p class="eyebrow">Differentiated Review</p><h3>让评论升级为耐久的内容审阅层</h3></div></div>
+                        <p>评论锚点从文件路径、元素 ID 和字符偏移升级为“文档指纹＋标题路径＋前后文＋文本哈希”的复合定位；存储采用追加事件日志和原子快照，正文变动或文件重命名后自动重新定位，低置信度评论进入待确认列表。评论可附带标准 diff 建议，但不污染 Markdown 正文，默认不持久化 IP。</p>
+                        <dl>
+                            <dt>Axis</dt><dd>编辑与知识工作流体验；安全与数据可靠性</dd>
+                            <dt>Basis</dt><dd><code>direct:</code> 当前评论整体同步覆盖 <code>comments.json</code>，按文件路径、元素 ID 与文本位置持久化，渲染刷新后再重新包裹高亮；文件变更监听不会迁移评论归属。</dd>
+                            <dt>Rationale</dt><dd>评论是项目已有的差异化能力，但当前锚点无法经受重命名和内容重排。耐久锚点可把它从页面装饰升级为长期本地审阅协议，并与 I2 的事务和 I3 的语义内核形成复利。</dd>
+                            <dt>Downsides</dt><dd>重新定位是启发式问题，必须展示置信度与人工确认；旧评论迁移和事件日志压缩也需要清晰的数据版本策略。</dd>
+                        </dl>
+                        <div class="metrics"><span class="metric">Confidence 83%</span><span class="metric complexity">Complexity Medium–High</span></div>
+                    </article>
+                </div>
+            </section>
+
+            <section id="rejection-summary">
+                <h2>Rejection Summary</h2>
+                <table>
+                    <thead><tr><th>#</th><th>Idea</th><th>Reason Rejected</th></tr></thead>
+                    <tbody>
+                    <tr><td>1</td><td>独立工作区事务协调器</td><td>已并入 I2；作为文档事务层的多文件扩展更完整。</td></tr>
+                    <tr><td>2</td><td>单独的工作区编译索引</td><td>已并入 I3；仅做索引会错失共享语义内核和命令入口的复利。</td></tr>
+                    <tr><td>3</td><td>单独的 Markdown 重构引擎</td><td>已并入 I3；它是语义模型上的首批产品结果，不应成为另一套底座。</td></tr>
+                    <tr><td>4</td><td>工作区瞬移框</td><td>已并入 I3；统一入口有价值，但缺少索引与命令图时只是更大的搜索框。</td></tr>
+                    <tr><td>5</td><td>渐进式文件树启动</td><td>作为 I3 的规模化实现策略保留，不足以单独成为长期产品方向。</td></tr>
+                    <tr><td>6</td><td>虚拟 frontmatter 表格/看板</td><td>有外部验证但属于较大产品扩张；应在 I3 稳定后单独 brainstorm。</td></tr>
+                    <tr><td>7</td><td>共享大纲/链接语义模块</td><td>已并入 I3；单独做只解决重复逻辑，价值低于完整语义内核。</td></tr>
+                    <tr><td>8</td><td>命令注册表与 CLI</td><td>已并入 I3；作为内核的控制面比独立工具栏重构更有杠杆。</td></tr>
+                    <tr><td>9</td><td>PlantUML 隐私代理</td><td>已并入 I1；单点解决 PlantUML 无法覆盖 HTML、图片和其他网络能力。</td></tr>
+                    <tr><td>10</td><td>离线依赖自动供应链</td><td>证据充分，但更适合作为 I1/I6 的工程保障，不独立占据 survivor 名额。</td></tr>
+                    <tr><td>11</td><td>自解压内容寻址资源包</td><td>当前 6.6MB 产物尚不足以证明用户价值高于缓存、解压和清理复杂度。</td></tr>
+                    <tr><td>12</td><td>原生 ES Module 迁移</td><td>必要但低于 ambition floor；是 I3/I4 的实施手段，不是用户可选择的方向。</td></tr>
+                    <tr><td>13</td><td>Viewer/Editor 块级原地编辑</td><td>创新但交互与定位风险高，且依赖 I3；更适合后续单独 brainstorm。</td></tr>
+                    <tr><td>14</td><td>工作区黑匣子轨迹</td><td>已并入 I4；没有真实发布物回放时，轨迹自身价值有限。</td></tr>
+                    <tr><td>15</td><td>可复现导出清单</td><td>已并入 I6；与增量渲染共享依赖图和版本清单更强。</td></tr>
+                    <tr><td>16</td><td>附件生命周期与孤立图片诊断</td><td>作为 I3 的首批诊断和 I2 的事务用例保留，不单独晋级。</td></tr>
+                    <tr><td>17</td><td>单独建立 solutions 与性能预算</td><td>已并入 I4；只有和事故回放绑定，知识沉淀才会持续发生。</td></tr>
+                    </tbody>
+                </table>
+                <p class="note">独立依据核验任务未在时限内完成；最终筛选由主代理基于 331 条仓库证据逐项复核，并对高复杂度组合保守下调置信度。</p>
+            </section>
+
+            <section class="references" id="sources-references">
+                <h2>Sources &amp; References</h2>
+                <ul>
+                    <li><a href="https://github.com/chainren/mdviewer/blob/main/src/public/js/renderer.js">Renderer implementation</a></li>
+                    <li><a href="https://github.com/chainren/mdviewer/blob/main/src/public/js/editor.js">Editor implementation</a></li>
+                    <li><a href="https://github.com/chainren/mdviewer/blob/main/src/public/js/fileTree.js">File tree implementation</a></li>
+                    <li><a href="https://github.com/chainren/mdviewer/blob/main/src/fileUtils.ts">File and outline utilities</a></li>
+                    <li><a href="https://github.com/chainren/mdviewer/blob/main/src/server.ts">Express, comments, watcher and WebSocket server</a></li>
+                    <li><a href="https://github.com/chainren/mdviewer/blob/main/tests/test-editor-smoke.js">Current editor smoke test</a></li>
+                    <li><a href="https://code.visualstudio.com/docs/languages/markdown">VS Code Markdown editing</a></li>
+                    <li><a href="https://code.visualstudio.com/updates/v1_120">VS Code 1.120 Markdown improvements</a></li>
+                    <li><a href="https://help.obsidian.md/links">Obsidian Links</a></li>
+                    <li><a href="https://help.obsidian.md/backlinks">Obsidian Backlinks</a></li>
+                    <li><a href="https://obsidian.md/help/bases">Obsidian Bases</a></li>
+                    <li><a href="https://marked.js.org/">Marked documentation and security note</a></li>
+                    <li><a href="https://mermaid.js.org/config/usage.html">Mermaid configuration and security levels</a></li>
+                    <li><a href="https://plantuml.com/security">PlantUML security guidance</a></li>
+                    <li><a href="https://playwright.dev/docs/intro">Playwright test runner</a></li>
+                </ul>
+            </section>
+        </main>
+
+        <aside aria-label="Document navigation">
+            <p class="eyebrow">Contents</p>
+            <a href="#grounding-context">Grounding Context</a>
+            <a href="#topic-axes">Topic Axes</a>
+            <a href="#ranked-ideas">Ranked Ideas</a>
+            <a href="#rejection-summary">Rejection Summary</a>
+            <a href="#sources-references">Sources &amp; References</a>
+        </aside>
+    </div>
+
+    <footer>Composed 2026-07-28T18:07:48+08:00 · Source: ce-ideate / chainren/mdviewer</footer>
+</div>
+</body>
+</html>
+<!-- AIGC END -->

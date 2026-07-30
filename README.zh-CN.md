@@ -2,7 +2,7 @@
 
 中文文档 | [English](README.md)
 
-一个基于 TypeScript 的 Markdown 文件预览与编辑器，支持实时渲染、流程图、多主题、文件树、文档大纲、代码高亮与响应式布局。后端使用 Node.js + Express，前端以原生 HTML/CSS/JS 结合 Marked.js、Prism.js 实现。
+一个基于 TypeScript 的本地工作区文件预览与 Markdown 编辑器，支持 Markdown 实时渲染、HTML 沙箱预览、YAML/JSON 结构预览、流程图、多主题、文件树、文档大纲、代码高亮与响应式布局。后端使用 Node.js + Express，前端以原生 HTML/CSS/JS 结合 Marked.js、Prism.js 实现。
 
 ## 🖼️ 效果图
 
@@ -28,7 +28,10 @@
 - 📝 **Markdown 渲染**：完整 GFM 支持、自动生成标题大纲、代码高亮、表格/列表/任务列表等
 - 📊 **流程图支持**：Mermaid 客户端渲染、PlantUML 代码块语法支持
 - 🎨 **多主题切换**：内置亮色/暗色等多种主题，主题偏好自动保存到本地
-- 📁 **智能文件树**：可展开/收起的文件浏览器，仅显示 Markdown 文件，支持目录层级
+- 📁 **智能文件树**：可展开/收起的文件浏览器，仅显示可预览的 Markdown、HTML、YAML、JSON，支持目录层级
+- 🌐 **多格式预览**：HTML 在禁用脚本和表单的沙箱中打开，支持 CSS、图片、字体等工作区资源
+- 🧩 **结构化数据树**：YAML/JSON 默认以可折叠树展示，解析失败时回退到带行列信息的源码
+- 🔗 **HTML 链接处理**：支持在 Viewer 内打开其他可预览文档，外部链接在新标签页打开
 - 🔍 **文件搜索**：实时搜索文件名，自动展开匹配项的所有父级目录，支持一键清除
 - 🧭 **文档大纲导航**：按标题层级自动生成导航，桌面与移动端均可收起/展开
 
@@ -62,7 +65,8 @@
 
 ### 安全与性能
 - 🔒 **同源校验**：CSRF 防护，仅允许同源页面发起修改请求
-- 🛡️ **路径约束**：防越权与符号链接逃逸，仅允许工作区内的 Markdown 文件
+- 🛡️ **路径约束**：防越权与符号链接逃逸，文档和 HTML 本地资源均限制在工作区内
+- 🧱 **HTML 安全边界**：移除脚本、事件处理器和危险嵌入，并通过 sandbox 禁止脚本执行与表单提交
 - 💻 **代码高亮**：Prism.js 自动识别 50+ 编程语言
 - 📱 **响应式布局**：移动端优化，保留大纲把手便于再次展开
 - 📦 **单文件打包**：支持打包为独立可执行文件，内嵌所有静态资源
@@ -216,9 +220,14 @@ mdviewer/
 │       │   ├── editor.css
 │       │   └── themes.css
 │       └── js/
-│           ├── app.js         # 前端主逻辑（文件树、导航、跳转到编辑器）
+│           ├── app.js         # 前端主逻辑（文件树、导航、格式分发）
 │           ├── renderer.js    # Markdown 渲染逻辑（Mermaid/Prism）
 │           ├── fileTree.js    # 文件树组件
+│           ├── htmlPreview.js  # HTML 沙箱预览与链接处理
+│           ├── previewLinkUtils.js       # HTML 链接分类
+│           ├── structuredPreview.js      # YAML/JSON 折叠树渲染
+│           ├── structuredPreviewUtils.js # 解析、错误映射与树模型
+│           ├── structuredPreviewWorker.js# Worker 解析边界
 │           ├── editorCommands.js # 可测试的 Markdown 编辑命令
 │           ├── editorHistory.js  # 编辑器撤销/重做历史管理
 │           ├── editorExport.js   # 编辑器导出 HTML/Word/Markdown 工具
@@ -277,12 +286,12 @@ mdviewer --dir ~/Documents/notes --port 8080
 ## 📋 API 概览
 
 ### 文件管理
-- **GET `/api/files`**：获取工作区内的 Markdown 文件树
+- **GET `/api/files`**：获取工作区内可预览文档树，仅包含 Markdown、HTML、YAML、JSON
   - 返回：`FileNode[]` 树型结构
   - 包含：文件名、路径、类型（file/directory）、子节点
 
 - **GET `/api/file/:path(*)`**：读取文件
-  - 返回：`{ content, outline, path, lastModified }`
+  - 返回：`{ content, documentType, outline?, path, lastModified }`；`outline` 仅 Markdown 返回
   - `content`：文件内容（字符串）
   - `outline`：标题大纲数组
   - `lastModified`：文件修改时间戳（毫秒）
@@ -300,6 +309,10 @@ mdviewer --dir ~/Documents/notes --port 8080
 
 - **GET `/api/outline/:path(*)`**：获取文件大纲
   - 返回：`OutlineItem[]` 标题层级数组
+
+- **GET `/api/resource/:path(*)`**：读取 HTML 预览引用的工作区本地资源
+  - 支持 CSS、图片、字体和其他静态资源
+  - 通过工作区边界与真实路径校验，拒绝路径穿越和符号链接逃逸
 
 ### 评论管理
 - **GET `/api/comments/:path(*)`**：获取文件的所有评论

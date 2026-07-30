@@ -2,7 +2,7 @@
 
 [中文文档](README.zh-CN.md) | English
 
-Markdown Viewer is a TypeScript-based Markdown previewer and editor for local workspaces. It provides live rendering, a file tree, document outline navigation, Mermaid and PlantUML support, comments, multiple themes, and an enhanced built-in editor.
+Markdown Viewer is a TypeScript-based local-workspace viewer and Markdown editor. It provides live Markdown rendering, HTML sandbox preview, YAML/JSON structure preview, a file tree, document outline navigation, Mermaid and PlantUML support, comments, multiple themes, and an enhanced built-in editor.
 
 The backend is built with Node.js, Express, TypeScript, Chokidar, and WebSocket. The frontend uses plain HTML/CSS/JavaScript with Marked.js, Prism.js, Mermaid, KaTeX, and related browser-side utilities.
 
@@ -35,9 +35,16 @@ The backend is built with Node.js, Express, TypeScript, Chokidar, and WebSocket.
 - **Math support**: KaTeX-powered inline and block math rendering.
 - **Themes**: built-in light/dark themes with local preference persistence.
 
+### Multi-format Preview
+
+- **Previewable documents**: `.md`, `.markdown`, `.mdown`, `.mkd`, `.mkdn`, `.html`, `.htm`, `.yaml`, `.yml`, and `.json`.
+- **HTML isolation**: HTML opens in a sandboxed iframe without script or form permissions; local CSS, images, fonts, and other resources are served through a workspace-safe resource endpoint.
+- **HTML navigation**: links to supported documents reopen inside the Viewer, external links open in a new tab, and other local resources open directly through controlled resource access.
+- **Structured data**: YAML and JSON render as collapsible trees, use a worker for parsing, and show source with line and column information when parsing fails.
+
 ### Workspace Navigation
 
-- **Markdown-only file tree**: browses supported Markdown files inside the selected workspace.
+- **Previewable file tree**: browses supported Markdown, HTML, YAML, and JSON files inside the selected workspace while hiding unrelated resources.
 - **File search**: filters file names in real time and expands matched parent folders.
 - **Keyboard navigation**: arrow keys, Enter, and Space for file tree navigation.
 - **Context menu**: open, edit, copy path, create files/folders, and refresh actions.
@@ -68,6 +75,7 @@ The backend is built with Node.js, Express, TypeScript, Chokidar, and WebSocket.
 - **Same-origin checks**: write APIs validate `Origin` or `Referer` to reduce CSRF risk.
 - **Workspace isolation**: file operations are constrained to the selected workspace.
 - **Path traversal protection**: server-side path resolution prevents escaping the workspace.
+- **HTML preview isolation**: sandboxed HTML previews remove scripts, event handlers, active embeds, and form submission permissions.
 - **Single-file bundle**: production assets can be embedded into `mdviewer.js` for portable usage.
 
 ## Quick Start
@@ -145,6 +153,8 @@ After startup, open:
 ## Supported Files
 
 - Markdown extensions: `.md`, `.markdown`, `.mdown`, `.mkd`, `.mkdn`.
+- HTML extensions: `.html`, `.htm` (read-only browser preview).
+- Structured data extensions: `.yaml`, `.yml`, `.json` (read-only collapsible tree preview).
 - Default workspace: current working directory.
 - Custom workspace: `--dir /path/to/workspace`.
 - Request body limit: `10MB` for editing large Markdown files.
@@ -155,7 +165,7 @@ After startup, open:
 mdviewer/
 ├── src/
 │   ├── server.ts              # Express server, REST APIs, static assets, WebSocket
-│   ├── fileUtils.ts           # Path safety, file tree, outline extraction
+│   ├── fileUtils.ts           # Path safety, file tree, document/resource reads
 │   ├── assetUtils.ts          # Image asset helpers
 │   ├── portUtils.ts           # Port parsing and fallback helpers
 │   ├── version.ts             # Version metadata
@@ -164,6 +174,11 @@ mdviewer/
 │       ├── editor.html        # Editor page
 │       ├── css/
 │       └── js/
+│           ├── htmlPreview.js            # Sandboxed HTML preview and navigation
+│           ├── previewLinkUtils.js       # HTML link classification
+│           ├── structuredPreview.js      # YAML/JSON tree rendering
+│           ├── structuredPreviewUtils.js # Structured parsing and normalization
+│           └── structuredPreviewWorker.js# Worker parsing boundary
 ├── scripts/
 │   ├── embed-assets.js        # Embeds frontend assets for bundle builds
 │   ├── bump-version.js        # Version bump helper
@@ -182,8 +197,9 @@ mdviewer/
 
 ### Files
 
-- `GET /api/files`: returns the Markdown file tree for the workspace.
-- `GET /api/file/:path(*)`: reads a Markdown file and returns `{ content, outline, path, lastModified }`.
+- `GET /api/files`: returns the previewable document tree for the workspace.
+- `GET /api/file/:path(*)`: reads a Markdown, HTML, YAML, or JSON document and returns `{ content, documentType, outline?, path, lastModified }`; `outline` is Markdown-only.
+- `GET /api/resource/:path(*)`: reads a non-document local resource after workspace and realpath validation; used by HTML preview.
 - `POST /api/file/:path(*)`: saves a Markdown file with same-origin, workspace, extension, and concurrency checks.
 - `GET /api/outline/:path(*)`: returns heading outline data for a Markdown file.
 

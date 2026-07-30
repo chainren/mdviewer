@@ -1,6 +1,6 @@
 {
   "name": "markdown-viewer",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A TypeScript Markdown file previewer with live rendering and diagram support",
   "main": "dist/server.js",
   "bin": {
@@ -14,7 +14,7 @@
     "start:bundle": "node mdviewer.js",
     "dev": "concurrently \"tsc -w\" \"nodemon dist/server.js\"",
     "clean": "rm -rf dist",
-    "test": "npm run build && node tests/test-asset-utils.js && node tests/test-editor-commands.js && node tests/test-editor-export.js && node tests/test-editor-history.js && node tests/test-editor-layout.js && node tests/test-editor-smoke.js && node tests/test-link-utils.js && node tests/test-markdown-math.js && node tests/test-port-utils.js && node tests/test-version-bump.js && node tests/test-version-utils.js",
+    "test": "npm run build && node tests/test-asset-utils.js && node tests/test-document-utils.js && node tests/test-document-api.js && node tests/test-editor-commands.js && node tests/test-editor-export.js && node tests/test-editor-history.js && node tests/test-editor-layout.js && node tests/test-editor-smoke.js && node tests/test-link-utils.js && node tests/test-preview-link-utils.js && node tests/test-preview-state.js && node tests/test-structured-preview.js && node tests/test-structured-preview-smoke.js && node tests/test-html-preview-smoke.js && node tests/test-html-resource-api.js && node tests/test-file-change-events.js && node tests/test-viewer-refresh-smoke.js && node tests/test-viewer-smoke.js && node tests/test-markdown-math.js && node tests/test-port-utils.js && node tests/test-version-bump.js && node tests/test-version-utils.js",
     "test:plantuml": "node scripts/validate-plantuml.js",
     "version:patch": "node scripts/bump-version.js patch",
     "version:minor": "node scripts/bump-version.js minor",

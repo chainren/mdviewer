@@ -1,6 +1,6 @@
 // AIGC START
 export const APP_NAME = 'mdviewer';
-export const APP_VERSION = '1.0.0';
+export const APP_VERSION = '1.1.0';
 
 export function getVersionText(): string {
   return `${APP_NAME} ${APP_VERSION}`;

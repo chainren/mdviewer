@@ -4,7 +4,7 @@ import * as WebSocket from 'ws';
 import * as chokidar from 'chokidar';
 import * as fs from 'fs';
 import * as os from 'os';
-import { buildFileTree, readMarkdownFile, extractOutline, isMarkdownFile, resolveWorkspacePath, getWorkspaceRootReal } from './fileUtils';
+import { buildFileTree, readMarkdownFile, readWorkspaceDocument, extractOutline, isMarkdownFile, isPreviewableFile, resolveWorkspacePath, resolveWorkspaceResource, toWorkspaceRelativePath, getWorkspaceRootReal } from './fileUtils';
 import { FileNode, FileChangeEvent } from './types';
 import * as crypto from 'crypto';
 import { findAvailableHttpPort, parsePortValue } from './portUtils';
@@ -208,6 +208,26 @@ app.use('/workspace/*', (req, res) => {
   res.status(404).send('Not Found');
 });
 
+// AIGC START
+app.get('/api/resource/:path(*)', (req, res) => {
+  try {
+    const resolved = resolveWorkspaceResource(req.params.path);
+    res.sendFile(resolved, { dotfiles: 'deny' }, (error: any) => {
+      if (error && !res.headersSent) {
+        console.error('Error sending workspace resource:', error);
+        res.status(error.statusCode || 500).send(error.statusCode === 404 ? 'Not Found' : 'Failed to read resource');
+      }
+    });
+  } catch (error: any) {
+    console.error('Error reading workspace resource:', error);
+    if (error && (error.code === 'EWORKSPACE' || error.code === 'ERESOURCE' || error.code === 'ENOENT')) {
+      return res.status(404).send('Not Found');
+    }
+    res.status(500).send('Failed to read resource');
+  }
+});
+// AIGC END
+
 // 编辑器页面
 app.get('/editor.html', (req, res) => {
   const a = assets['/editor.html'] || assets['editor.html'];
@@ -258,17 +278,15 @@ app.get('/api/files', async (req, res) => {
 app.get('/api/file/:path(*)', (req, res) => {
   try {
     const rawPath = req.params.path;
-    const content = readMarkdownFile(rawPath);
-    const resolved = resolveWorkspacePath(rawPath);
-    const stat = fs.statSync(resolved);
-    const lastModified = stat.mtimeMs;
-    const outline = extractOutline(content);
+    const document = readWorkspaceDocument(rawPath);
+    const outline = document.documentType === 'markdown' ? extractOutline(document.content) : undefined;
     
     res.json({
-      content,
+      content: document.content,
+      documentType: document.documentType,
       outline,
-      path: rawPath,
-      lastModified
+      path: document.path,
+      lastModified: document.lastModified
     });
   } catch (error: any) {
     console.error('Error reading file:', error);
@@ -513,22 +531,22 @@ const watcher = chokidar.watch(process.cwd(), {
 
 // 文件/目录变更时清除文件树缓存
 watcher.on('add', (filePath) => {
-  if (isMarkdownFile(filePath)) {
+  if (isPreviewableFile(filePath)) {
     clearFileTreeCache();
-    broadcastChange({ type: 'change', path: filePath });
+    broadcastChange({ type: 'add', path: toWorkspaceRelativePath(filePath) });
   }
 });
 
 watcher.on('unlink', (filePath) => {
-  if (isMarkdownFile(filePath)) {
+  if (isPreviewableFile(filePath)) {
     clearFileTreeCache();
-    broadcastChange({ type: 'change', path: filePath });
+    broadcastChange({ type: 'unlink', path: toWorkspaceRelativePath(filePath) });
   }
 });
 
 watcher.on('change', (filePath) => {
-  if (path.extname(filePath).match(/\.(md|markdown)$/i)) {
-    broadcastChange({ type: 'change', path: filePath });
+  if (isPreviewableFile(filePath)) {
+    broadcastChange({ type: 'change', path: toWorkspaceRelativePath(filePath) });
   }
 });
 

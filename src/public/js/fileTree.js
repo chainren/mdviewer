@@ -293,10 +293,12 @@ class FileTree {
                 this.hideContextMenu();
             });
             
-            this.addContextMenuItem('✏️ 编辑文件', () => {
-                this.editFile(file);
-                this.hideContextMenu();
-            });
+            if (file.documentType === 'markdown' || this.isMarkdownPath(file.path)) {
+                this.addContextMenuItem('✏️ 编辑文件', () => {
+                    this.editFile(file);
+                    this.hideContextMenu();
+                });
+            }
             
             this.addContextMenuItem('📋 复制路径', () => {
                 this.copyFilePath(file);
@@ -367,6 +369,8 @@ class FileTree {
     }
     
     editFile(file) {
+        if (file.documentType && file.documentType !== 'markdown') return;
+        if (!file.documentType && !this.isMarkdownPath(file.path)) return;
         if (this.onFileSelect) {
             this.onFileSelect(file);
         }
@@ -374,6 +378,10 @@ class FileTree {
         // 触发编辑功能
         const editEvent = new CustomEvent('file-edit', { detail: file });
         document.dispatchEvent(editEvent);
+    }
+
+    isMarkdownPath(filePath) {
+        return /\.(md|markdown|mdown|mkd|mkdn)$/i.test(filePath || '');
     }
     
     copyFilePath(file) {
@@ -589,7 +597,9 @@ class FileTree {
     render() {
         if (this.files.length === 0) {
             const target = this.contentWrapper || this.container;
-            target.innerHTML = '<div class="placeholder">未找到 Markdown 文件</div>';
+            // AIGC START
+            target.innerHTML = '<div class="placeholder">未找到可预览文件</div>';
+            // AIGC END
             return;
         }
 
@@ -697,7 +707,9 @@ class FileTree {
         } else {
             const icon = document.createElement('span');
             icon.className = 'file-icon';
-            icon.textContent = '📄';
+            // AIGC START
+            icon.textContent = this.getDocumentIcon(file);
+            // AIGC END
             element.appendChild(icon);
             
             const name = document.createElement('span');
@@ -724,6 +736,28 @@ class FileTree {
         
         return element;
     }
+
+    // AIGC START
+    getDocumentIcon(file) {
+        const documentType = file.documentType || this.getDocumentTypeFromPath(file.path || file.name);
+        const icons = {
+            markdown: '📝',
+            html: '🌐',
+            yaml: '⚙️',
+            json: '🧩'
+        };
+        return icons[documentType] || '📄';
+    }
+
+    getDocumentTypeFromPath(filePath) {
+        const extension = (filePath.split('.').pop() || '').toLowerCase();
+        if (['md', 'markdown', 'mdown', 'mkd', 'mkdn'].includes(extension)) return 'markdown';
+        if (['html', 'htm'].includes(extension)) return 'html';
+        if (['yaml', 'yml'].includes(extension)) return 'yaml';
+        if (extension === 'json') return 'json';
+        return null;
+    }
+    // AIGC END
 
     toggleDirectory(directory, element) {
         const wasExpanded = directory.expanded;

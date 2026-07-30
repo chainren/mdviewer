@@ -1,8 +1,21 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { FileNode } from './types';
+import { DocumentType, FileNode, WorkspaceDocument } from './types';
 
-const MARKDOWN_EXTENSIONS = ['.md', '.markdown', '.mdown', '.mkd', '.mkdn'];
+// AIGC START
+const DOCUMENT_EXTENSIONS: Record<string, DocumentType> = {
+  '.md': 'markdown',
+  '.markdown': 'markdown',
+  '.mdown': 'markdown',
+  '.mkd': 'markdown',
+  '.mkdn': 'markdown',
+  '.html': 'html',
+  '.htm': 'html',
+  '.yaml': 'yaml',
+  '.yml': 'yaml',
+  '.json': 'json',
+};
+// AIGC END
 
 // 文件树扫描时跳过的目录，避免递归遍历大量无关文件
 const EXCLUDED_DIRS = new Set([
@@ -15,14 +28,29 @@ const EXCLUDED_DIRS = new Set([
 ]);
 
 export function isMarkdownFile(filePath: string): boolean {
-  const ext = path.extname(filePath).toLowerCase();
-  return MARKDOWN_EXTENSIONS.includes(ext);
+  return getDocumentType(filePath) === 'markdown';
 }
+
+// AIGC START
+export function getDocumentType(filePath: string): DocumentType | undefined {
+  return DOCUMENT_EXTENSIONS[path.extname(filePath).toLowerCase()];
+}
+
+export function isPreviewableFile(filePath: string): boolean {
+  return getDocumentType(filePath) !== undefined;
+}
+// AIGC END
 
 export function getWorkspaceRootReal(): string {
   const root = process.cwd();
   return fs.realpathSync(root);
 }
+
+// AIGC START
+export function toWorkspaceRelativePath(filePath: string): string {
+  return path.relative(getWorkspaceRootReal(), filePath).split(path.sep).join('/');
+}
+// AIGC END
 
 export function resolveWorkspacePath(rawPath: string, options?: { allowCreate?: boolean }): string {
   const allowCreate = !!(options && options.allowCreate);
@@ -86,11 +114,12 @@ export async function buildFileTree(dirPath: string, basePath: string = dirPath)
             expanded: false
           });
         }
-      } else if (entry.isFile() && isMarkdownFile(entry.name)) {
+      } else if (entry.isFile() && isPreviewableFile(entry.name)) {
         items.push({
           name: entry.name,
           path: relativePath,
-          type: 'file'
+          type: 'file',
+          documentType: getDocumentType(entry.name),
         });
       }
     }
@@ -107,14 +136,47 @@ export async function buildFileTree(dirPath: string, basePath: string = dirPath)
 }
 
 export function readMarkdownFile(rawPath: string): string {
-  const fullPath = resolveWorkspacePath(rawPath);
-  if (!isMarkdownFile(fullPath)) {
+  const document = readWorkspaceDocument(rawPath);
+  if (document.documentType !== 'markdown') {
     const err: any = new Error('Not a markdown file');
     err.code = 'EBADTYPE';
     throw err;
   }
-  return fs.readFileSync(fullPath, 'utf-8');
+  return document.content;
 }
+
+// AIGC START
+export function readWorkspaceDocument(rawPath: string): WorkspaceDocument {
+  const fullPath = resolveWorkspacePath(rawPath);
+  const documentType = getDocumentType(fullPath);
+  if (!documentType) {
+    const err: any = new Error('Not a previewable document');
+    err.code = 'EBADTYPE';
+    throw err;
+  }
+  const content = fs.readFileSync(fullPath, 'utf-8');
+  const stat = fs.statSync(fullPath);
+  return {
+    content,
+    documentType,
+    path: rawPath,
+    lastModified: stat.mtimeMs,
+  };
+}
+
+export function resolveWorkspaceResource(rawPath: string): string {
+  const resolved = resolveWorkspacePath(rawPath);
+  const relativePath = path.relative(getWorkspaceRootReal(), resolved);
+  const segments = relativePath.split(path.sep);
+  if (segments.some(segment => segment.startsWith('.') || segment === 'node_modules')) {
+    throw Object.assign(new Error('Resource is not accessible'), { code: 'ERESOURCE' });
+  }
+  if (!fs.statSync(resolved).isFile()) {
+    throw Object.assign(new Error('Resource is not a file'), { code: 'ERESOURCE' });
+  }
+  return resolved;
+}
+// AIGC END
 
 export function extractOutline(content: string): Array<{level: number, text: string, id: string, line: number}> {
   const outline: Array<{level: number, text: string, id: string, line: number}> = [];
